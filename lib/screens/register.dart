@@ -1,28 +1,18 @@
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
-import 'register.dart';
 
-void main() => runApp(const MyApp());
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(home: const LoginScreen());
-  }
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
-
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _nameController = TextEditingController();
 
   void _showAlert(String title, String message) {
     showDialog(
@@ -42,24 +32,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _login() {
+  void _register() {
     _showAlert(
       'Función en desarrollo',
-      'El inicio de sesión está en proceso de implementación. Esta función permitirá autenticarte con tu correo electrónico y contraseña.',
+      'El registro de usuarios está en proceso de implementación. Esta función permitirá crear una nueva cuenta con tu correo electrónico y contraseña.',
     );
-  }
-
-  void _forgotPassword() {
-    _showAlert(
-      'Recuperación de contraseña',
-      'La función de recuperación de contraseña está en desarrollo. Permitirá restablecer tu contraseña mediante un correo de verificación.',
-    );
-  }
-
-  void _navigateToRegister() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const RegisterScreen()));
   }
 
   @override
@@ -89,13 +66,24 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Logo o título
-                const Icon(Icons.account_circle, size: 80, color: Colors.blue),
+                const Icon(Icons.person_add, size: 80, color: Colors.blue),
                 const SizedBox(height: 20),
                 const Text(
-                  'Iniciar Sesión',
+                  'Crear cuenta',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 30),
+
+                // Campo de nombre
+                TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre completo',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 // Campo de email
                 TextField(
@@ -119,20 +107,32 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: Icon(Icons.lock),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // Campo de confirmar contraseña
+                TextField(
+                  controller: _confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmar contraseña',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                ),
                 const SizedBox(height: 20),
 
-                // Botón de inicio de sesión
+                // Botón de registro
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _login,
+                    onPressed: _register,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                     ),
                     child: const Text(
-                      'Iniciar Sesión',
+                      'Registrarse',
                       style: TextStyle(fontSize: 16),
                     ),
                   ),
@@ -140,21 +140,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 20),
 
-                // Botón para ir a registro
+                // Botón para volver al login
                 TextButton(
-                  onPressed: _navigateToRegister,
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
                   child: const Text(
-                    '¿No tienes cuenta? Regístrate',
+                    '¿Ya tienes cuenta? Inicia sesión',
                     style: TextStyle(color: Colors.blue),
-                  ),
-                ),
-
-                // Botón de "Olvidé mi contraseña"
-                TextButton(
-                  onPressed: _forgotPassword,
-                  child: const Text(
-                    '¿Olvidaste tu contraseña?',
-                    style: TextStyle(color: Colors.grey),
                   ),
                 ),
               ],
@@ -169,6 +162,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 }
