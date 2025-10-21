@@ -21,5 +21,7 @@ class MainApp extends StatelessWidget {
       ),
       home: const PerfilScreen(),
     );
+
+    return MaterialApp(home: PerfilScreen(perfil: perfil));
   }
 }
