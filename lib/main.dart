@@ -1,6 +1,7 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'screens/perfil_screen.dart';
-import 'models/perfil.dart';
+import 'constants/app_constants.dart';
 
 void main() {
   runApp(const MainApp());
@@ -11,14 +12,14 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final perfil = Perfil(
-      nombre: 'Juan',
-      apellido: 'Pérez',
-      edad: 28,
-      fotoUrl:
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTpKUEitLoMmkyGNeZ7oyRuw8LYm2Xr3HNER3XifqBmpD_mpNPSCI0sIdbMTbCnasLnmr4&usqp=CAU", // Puedes poner una URL de imagen si tienes una
+    return MaterialApp(
+      title: AppStrings.appName,
+      theme: ThemeData(
+        primaryColor: AppColors.primary,
+        scaffoldBackgroundColor: AppColors.primaryBackground,
+        useMaterial3: true,
+      ),
+      home: const PerfilScreen(),
     );
-
-    return MaterialApp(home: PerfilScreen(perfil: perfil));
   }
 }
