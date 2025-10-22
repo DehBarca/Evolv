@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_constants.dart'; // Agrega esta importación
 
 class CalendarScreen extends StatefulWidget {
   final DateTime selectedDate;
@@ -40,11 +41,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Color _getProgressColor(double progress) {
-    if (progress >= 0.8) return Colors.green;
+    if (progress >= 0.8) return AppColors.success;
     if (progress >= 0.6) return Colors.lightGreen;
     if (progress >= 0.4) return Colors.yellow;
     if (progress >= 0.2) return Colors.orange;
-    return Colors.red;
+    return AppColors.error;
   }
 
   DateTime _getMonthFromIndex(int index) {
@@ -98,14 +99,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F6),
+      backgroundColor: AppColors.primaryBackground,
       appBar: AppBar(
         title: const Text(
           'Calendario',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black87,
+        foregroundColor: AppColors.textPrimary,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -116,50 +117,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           Positioned(
             top: 0,
-            left: 16,
-            right: 16,
-            child: 
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Leyenda de progreso',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _LegendItem('Excelente', Colors.green),
-                            _LegendItem('Bueno', Colors.lightGreen),
-                            _LegendItem('Regular', Colors.yellow),
-                            _LegendItem('Bajo', Colors.orange),
-                            _LegendItem('Muy bajo', Colors.red),
-                          ],
-                        ),
-                      ],
-                    ),
+            left: AppSizes.paddingMedium,
+            right: AppSizes.paddingMedium,
+            child: Container(
+              padding: const EdgeInsets.all(AppSizes.paddingMedium),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+                boxShadow: AppShadows.cardShadow,
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Leyenda de progreso',
+                    style: AppTextStyles.bodyText,
                   ),
-                
+                  SizedBox(height: AppSizes.paddingSmall),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _LegendItem('Excelente', Colors.green),
+                      _LegendItem('Bueno', Colors.lightGreen),
+                      _LegendItem('Regular', Colors.yellow),
+                      _LegendItem('Bajo', Colors.orange),
+                      _LegendItem('Muy bajo', Colors.red),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
           Padding(
-            padding: const EdgeInsets.only(top:120),
+            padding: const EdgeInsets.only(top: 120),
             child: ListView.builder(
               controller: _scrollController,
               itemCount: 24, // 2 años hacia atrás
@@ -168,18 +158,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 final calendarDays = _getCalendarDays(currentMonth);
 
                 return Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSizes.paddingMedium),
                   child: Column(
                     children: [
                       // Título del mes
                       Text(
                         _getMonthName(currentMonth),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: AppTextStyles.heading2,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSizes.paddingMedium),
 
                       // Encabezado de días de la semana
                       const Row(
@@ -194,7 +181,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           _DayHeader('Dom'),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSizes.paddingMedium),
 
                       // Grid del calendario
                       GridView.builder(
@@ -203,8 +190,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 7,
-                              crossAxisSpacing: 8,
-                              mainAxisSpacing: 8,
+                              crossAxisSpacing: AppSizes.paddingSmall,
+                              mainAxisSpacing: AppSizes.paddingSmall,
                             ),
                         itemCount: calendarDays.length,
                         itemBuilder: (context, gridIndex) {
@@ -235,25 +222,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             child: Container(
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? Colors.blueAccent
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(12),
+                                    ? AppColors.primary
+                                    : AppColors.background,
+                                borderRadius: BorderRadius.circular(AppSizes.borderRadius),
                                 border: isToday && !isSelected
                                     ? Border.all(
-                                        color: Colors.blueAccent,
-                                        width: 2,
+                                        color: AppColors.primary,
+                                        width: AppSizes.borderWidth,
                                       )
                                     : null,
                                 boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: Colors.blueAccent.withOpacity(
-                                            0.3,
-                                          ),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ]
+                                    ? AppShadows.buttonShadow
                                     : null,
                               ),
                               child: Stack(
@@ -266,21 +245,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                         color: isSelected
-                                            ? Colors.white
-                                            : Colors.black87,
+                                            ? AppColors.background
+                                            : AppColors.textPrimary,
                                       ),
                                     ),
                                   ),
 
                                   // Indicador de progreso (barra inferior)
                                   Positioned(
-                                    bottom: 4,
-                                    left: 4,
-                                    right: 4,
+                                    bottom: AppSizes.paddingSmall / 2,
+                                    left: AppSizes.paddingSmall / 2,
+                                    right: AppSizes.paddingSmall / 2,
                                     child: Container(
                                       height: 4,
                                       decoration: BoxDecoration(
-                                        color: Colors.grey.shade200,
+                                        color: AppColors.borderColor,
                                         borderRadius: BorderRadius.circular(2),
                                       ),
                                       child: FractionallySizedBox(
@@ -289,9 +268,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         child: Container(
                                           decoration: BoxDecoration(
                                             color: _getProgressColor(progress),
-                                            borderRadius: BorderRadius.circular(
-                                              2,
-                                            ),
+                                            borderRadius: BorderRadius.circular(2),
                                           ),
                                         ),
                                       ),
@@ -329,10 +306,10 @@ class _DayHeader extends StatelessWidget {
       child: Center(
         child: Text(
           day,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: Colors.grey,
+            color: AppColors.borderColor,
           ),
         ),
       ),
