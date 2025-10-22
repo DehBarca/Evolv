@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../screens/calendar.dart'; // Ajusta la ruta según tu estructura
-import '../constants/app_constants.dart'; // Agrega esta importación
+import '../screens/calendar.dart'; 
+import '../constants/app_constants.dart'; 
 
 class DaysNavbar extends StatefulWidget {
   final List<DateTime> weekDays;
@@ -39,7 +39,6 @@ class _DaysNavbarState extends State<DaysNavbar> {
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingMedium, vertical: AppSizes.paddingSmall),
       child: Row(
         children: [
-          // Botón para abrir calendario completo
           IconButton(
             onPressed: () async {
               final selectedDateFromCalendar = await Navigator.of(context)
@@ -75,6 +74,13 @@ class _DaysNavbarState extends State<DaysNavbar> {
                   child: GestureDetector(
                     onTap: () {
                       widget.onDateSelected(date);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Día seleccionado: ${date.day}/${date.month}/${date.year}. Se irá al home de ese día.'),
+                          duration: const Duration(seconds: 2),
+                          backgroundColor: AppColors.primary,
+                        ),
+                      );
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 4),

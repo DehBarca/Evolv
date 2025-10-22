@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../constants/app_constants.dart'; // Agrega esta importación
+import '../constants/app_constants.dart';
 
 class CalendarScreen extends StatefulWidget {
   final DateTime selectedDate;
@@ -59,7 +59,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final firstDayOfMonth = DateTime(month.year, month.month, 1);
     final lastDayOfMonth = DateTime(month.year, month.month + 1, 0);
 
-    // Calcular cuántos días vacíos necesitamos al inicio
     final firstWeekday = firstDayOfMonth.weekday; // 1 = Monday, 7 = Sunday
     final emptyDays = firstWeekday - 1; // Número de días vacíos antes del 1
 
@@ -161,14 +160,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   padding: const EdgeInsets.all(AppSizes.paddingMedium),
                   child: Column(
                     children: [
-                      // Título del mes
                       Text(
                         _getMonthName(currentMonth),
                         style: AppTextStyles.heading2,
                       ),
                       const SizedBox(height: AppSizes.paddingMedium),
 
-                      // Encabezado de días de la semana
                       const Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -183,7 +180,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                       const SizedBox(height: AppSizes.paddingMedium),
 
-                      // Grid del calendario
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -198,7 +194,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           final date = calendarDays[gridIndex];
 
                           if (date == null) {
-                            // Día vacío
                             return Container();
                           }
 
@@ -281,7 +276,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         },
                       ),
 
-                      // Leyenda de colores (solo en el primer mes)
                     ],
                   ),
                 );

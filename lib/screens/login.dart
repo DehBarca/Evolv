@@ -1,4 +1,3 @@
-import 'package:a/screens/home.dart';
 import 'package:a/screens/tabs.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
@@ -91,7 +90,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo o título
                 const Icon(Icons.account_circle, size: 80, color: Colors.blue),
                 const SizedBox(height: 20),
                 const Text(
