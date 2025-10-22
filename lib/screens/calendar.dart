@@ -178,7 +178,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 final calendarDays = _getCalendarDays(currentMonth);
 
                 return Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSizes.paddingMedium),
                   child: Column(
                     children: [
                       // Título del mes
@@ -190,7 +190,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           color: isDark ? Colors.white : Colors.black,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSizes.paddingMedium),
 
                       // Encabezado de días de la semana
                       const Row(
@@ -205,7 +205,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           _DayHeader('Dom'),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSizes.paddingMedium),
 
                       // Grid del calendario
                       GridView.builder(
@@ -214,8 +214,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 7,
-                              crossAxisSpacing: 8,
-                              mainAxisSpacing: 8,
+                              crossAxisSpacing: AppSizes.paddingSmall,
+                              mainAxisSpacing: AppSizes.paddingSmall,
                             ),
                         itemCount: calendarDays.length,
                         itemBuilder: (context, gridIndex) {
@@ -292,9 +292,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                                   // Indicador de progreso (barra inferior)
                                   Positioned(
-                                    bottom: 4,
-                                    left: 4,
-                                    right: 4,
+                                    bottom: AppSizes.paddingSmall / 2,
+                                    left: AppSizes.paddingSmall / 2,
+                                    right: AppSizes.paddingSmall / 2,
                                     child: Container(
                                       height: 4,
                                       decoration: BoxDecoration(
@@ -309,9 +309,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         child: Container(
                                           decoration: BoxDecoration(
                                             color: _getProgressColor(progress),
-                                            borderRadius: BorderRadius.circular(
-                                              2,
-                                            ),
+                                            borderRadius: BorderRadius.circular(2),
                                           ),
                                         ),
                                       ),
