@@ -1,3 +1,5 @@
+import 'package:a/screens/home.dart';
+import 'package:a/screens/tabs.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
 import 'register.dart';
@@ -45,8 +47,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void _login() {
     _showAlert(
       'Función en desarrollo',
-      'El inicio de sesión está en proceso de implementación. Esta función permitirá autenticarte con tu correo electrónico y contraseña.',
+      'El inicio de sesión está en proceso de implementación. Esta función permitirá autenticarte con tu correo electrónico y contraseña. POR AHORA LO MANDA A HOME',
     );
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) => TabsScreen()));
   }
 
   void _forgotPassword() {
