@@ -1,0 +1,168 @@
+import 'package:a/screens/addHabit.dart';
+import 'package:flutter/material.dart';
+import '../widgets/overallProgressCard.dart';
+import '../widgets/daysNavbar.dart';
+import '../widgets/habitCard.dart';
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final String userName = "Diego";
+
+  DateTime selectedDate = DateTime.now();
+
+  final List<Map<String, dynamic>> habits = [
+    {"name": "Correr", "progress": 0.8},
+    {"name": "Leer 20 min", "progress": 0.5},
+    {"name": "Meditar", "progress": 0.2},
+    {"name": "Beber agua", "progress": 1.0},
+    {"name": "Estudiar", "progress": 0.4},
+    {"name": "3 obras buenas", "progress": 0.66},
+  ];
+
+  String _getFormattedDate(DateTime date) {
+    final weekdays = [
+      "Lunes",
+      "Martes",
+      "Miércoles",
+      "Jueves",
+      "Viernes",
+      "Sábado",
+      "Domingo",
+    ];
+    final months = [
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "octubre",
+      "noviembre",
+      "diciembre",
+    ];
+
+    String dayName = weekdays[date.weekday - 1];
+    String monthName = months[date.month - 1];
+
+    return "$dayName, ${date.day} de $monthName";
+  }
+
+  String _getShortDayName(DateTime date) {
+    final shortDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+    return shortDays[date.weekday - 1];
+  }
+
+  List<DateTime> _getWeekDays() {
+    final today = DateTime.now();
+    final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+
+    return List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
+  }
+
+  bool _isSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String today = _getFormattedDate(selectedDate);
+    final weekDays = _getWeekDays();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6F6F6),
+      appBar: AppBar(
+        title: Text(
+          "Hola, $userName 👋",
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.black87,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          DaysNavbar(
+            weekDays: weekDays,
+            selectedDate: selectedDate,
+            habits: habits,
+            onDateSelected: (date){
+              setState(() {
+                selectedDate = date;
+              });
+            },
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    today,
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Progreso general
+                  OverallProgressCard(habits: habits),
+
+                  const SizedBox(height: 24),
+                  const Text(
+                    "Tus hábitos de hoy",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Lista de hábitos
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: habits.length,
+                      itemBuilder: (context, index) {
+                        final habit = habits[index];
+                        return HabitCard(name: habit['name'], progress: habit['progress'],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final newHabit = await Navigator.of(context)
+              .push<Map<String, dynamic>>(
+                MaterialPageRoute(builder: (context) => const AddHabitScreen()),
+              );
+          if (newHabit != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Hábito "${newHabit['name']}" creado exitosamente!',
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        },
+        backgroundColor: Colors.blueAccent,
+        child: const Icon(Icons.add, size: 28),
+      ),
+    );
+  }
+
+  
+}
