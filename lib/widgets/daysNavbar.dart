@@ -34,9 +34,15 @@ class _DaysNavbarState extends State<DaysNavbar> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingMedium, vertical: AppSizes.paddingSmall),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.paddingMedium,
+        vertical: AppSizes.paddingSmall,
+      ),
       child: Row(
         children: [
           // Botón para abrir calendario completo
@@ -82,9 +88,14 @@ class _DaysNavbarState extends State<DaysNavbar> {
                         color: isSelected
                             ? AppColors.primary
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+                        borderRadius: BorderRadius.circular(
+                          AppSizes.borderRadius,
+                        ),
                         border: isToday && !isSelected
-                            ? Border.all(color: AppColors.primary, width: AppSizes.borderWidth)
+                            ? Border.all(
+                                color: AppColors.primary,
+                                width: AppSizes.borderWidth,
+                              )
                             : null,
                       ),
                       child: Column(
@@ -96,8 +107,10 @@ class _DaysNavbarState extends State<DaysNavbar> {
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: isSelected
-                                  ? AppColors.background
-                                  : AppColors.textPrimary,
+                                  ? Colors.white
+                                  : (isDark
+                                        ? Colors.white
+                                        : AppColors.textPrimary),
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -107,10 +120,12 @@ class _DaysNavbarState extends State<DaysNavbar> {
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: isSelected
-                                  ? AppColors.background
+                                  ? Colors.white
                                   : (isToday
                                         ? AppColors.primary
-                                        : AppColors.textPrimary),
+                                        : (isDark
+                                              ? Colors.white
+                                              : AppColors.textPrimary)),
                             ),
                           ),
                         ],

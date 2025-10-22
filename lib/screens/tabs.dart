@@ -3,6 +3,7 @@ import 'package:a/screens/perfil_screen.dart';
 import 'package:a/screens/settings.dart';
 import 'package:a/widgets/main_drawer.dart';
 import 'package:flutter/material.dart';
+import '../constants/app_constants.dart';
 
 class TabsScreen extends StatefulWidget {
   const TabsScreen({super.key});
@@ -15,8 +16,17 @@ class _TabScreenState extends State<TabsScreen> {
   var currentPageIndex = 0;
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Evolv')),
+      appBar: AppBar(
+        title: Text(
+          'Evolv',
+          style: TextStyle(color: isDark ? Colors.white : AppColors.primary),
+        ),
+        iconTheme: IconThemeData(color: Colors.white),
+      ),
       drawer: MainDrawer(
         changeIndex: (index) {
           setState(() {

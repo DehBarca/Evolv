@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:adaptive_theme/adaptive_theme.dart';
 import '../constants/app_constants.dart';
 
 void main() => runApp(const MyApp());
@@ -26,7 +27,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
   bool _soundEnabled = true;
   double _reminderFrequency = 2.0;
 
@@ -57,13 +57,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
       appBar: AppBar(
-        title: const Text('Ajustes', style: AppTextStyles.heading2),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        title: Text(
+          'Ajustes',
+          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+        ),
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.white),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSizes.paddingMedium),
@@ -155,9 +158,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               size: AppSizes.iconSizeSmall,
                             ),
                             const SizedBox(width: AppSizes.paddingMedium),
-                            const Text(
+                            Text(
                               'Frecuencia de recordatorios',
-                              style: AppTextStyles.bodyText,
+                              style: AppTextStyles.bodyText.copyWith(
+                                color: theme.brightness == Brightness.dark
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                              ),
                             ),
                           ],
                         ),
@@ -166,7 +173,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           '${_reminderFrequency.toInt()} veces al día',
                           style: TextStyle(
                             fontSize: 14,
-                            color: AppColors.obscureText.withValues(alpha: 0.6),
+                            color: isDark
+                                ? Colors.white70
+                                : AppColors.obscureText.withValues(alpha: 0.6),
                           ),
                         ),
                         Slider(
@@ -174,7 +183,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           min: 1,
                           max: 5,
                           divisions: 4,
-                          activeColor: AppColors.primary,
                           label: '${_reminderFrequency.toInt()}',
                           onChanged: (value) {
                             setState(() {
@@ -203,12 +211,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.dark_mode,
                     title: 'Modo oscuro',
                     subtitle: 'Cambia el tema de la aplicación',
-                    value: _darkModeEnabled,
+                    value: AdaptiveTheme.of(context).mode.isDark,
                     onChanged: (value) {
-                      setState(() {
-                        _darkModeEnabled = value;
-                      });
-                      _showComingSoon('Modo oscuro');
+                      if (value) {
+                        AdaptiveTheme.of(context).setDark();
+                      } else {
+                        AdaptiveTheme.of(context).setLight();
+                      }
                     },
                   ),
                   _buildDivider(),
@@ -326,7 +335,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: AppColors.obscureText.withValues(alpha: 0.7),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white70
+              : AppColors.obscureText.withValues(alpha: 0.7),
           letterSpacing: 0.5,
         ),
       ),
@@ -334,15 +345,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildCard({required Widget child}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color,
         border: Border.all(
-          color: AppColors.borderColor,
+          color: isDark ? AppColors.darkSurface : AppColors.borderColor,
           width: AppSizes.borderWidth,
         ),
         borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: AppShadows.cardShadow,
+        boxShadow: isDark ? [] : AppShadows.cardShadow,
       ),
       child: child,
     );
@@ -356,6 +368,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool showArrow = true,
     required VoidCallback onTap,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListTile(
       leading: Icon(
         icon,
@@ -367,7 +380,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: textColor ?? AppColors.textPrimary,
+          color: textColor ?? (isDark ? Colors.white : AppColors.textPrimary),
         ),
       ),
       subtitle: subtitle != null
@@ -375,7 +388,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle,
               style: TextStyle(
                 fontSize: 14,
-                color: AppColors.obscureText.withValues(alpha: 0.6),
+                color: isDark
+                    ? Colors.white70
+                    : AppColors.obscureText.withValues(alpha: 0.6),
               ),
             )
           : null,
@@ -383,7 +398,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ? Icon(
               Icons.arrow_forward_ios,
               size: 16,
-              color: AppColors.obscureText.withValues(alpha: 0.4),
+              color: isDark
+                  ? Colors.white60
+                  : AppColors.obscureText.withValues(alpha: 0.4),
             )
           : null,
       onTap: onTap,
@@ -397,6 +414,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListTile(
       leading: Icon(
         icon,
@@ -405,10 +423,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
+          color: isDark ? Colors.white : AppColors.textPrimary,
         ),
       ),
       subtitle: subtitle != null
@@ -416,23 +434,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle,
               style: TextStyle(
                 fontSize: 14,
-                color: AppColors.obscureText.withValues(alpha: 0.6),
+                color: isDark
+                    ? Colors.white70
+                    : AppColors.obscureText.withValues(alpha: 0.6),
               ),
             )
           : null,
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged,
-        activeColor: AppColors.primary,
-      ),
+      trailing: Switch(value: value, onChanged: onChanged),
     );
   }
 
   Widget _buildDivider() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Divider(
       height: 1,
       thickness: 1,
-      color: AppColors.borderColor,
+      color: isDark ? Colors.grey.shade800 : AppColors.borderColor,
       indent: AppSizes.paddingMedium,
       endIndent: AppSizes.paddingMedium,
     );

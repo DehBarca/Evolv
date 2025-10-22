@@ -27,6 +27,15 @@ class _PerfilScreenState extends State<PerfilScreen> {
   TextEditingController objetivosController = TextEditingController();
   TextEditingController imagenController = TextEditingController();
 
+  // Helper method para obtener colores según el tema
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).cardColor;
+  }
+
+  bool _isDark(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -76,18 +85,24 @@ class _PerfilScreenState extends State<PerfilScreen> {
     showDialog(
       context: context,
       builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return AlertDialog(
-          backgroundColor: AppColors.primaryBackground,
+          backgroundColor: Theme.of(context).cardColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSizes.borderRadius),
           ),
           title: Text(
             titulo,
             style: AppTextStyles.heading2.copyWith(
-              color: AppColors.textPrimary,
+              color: isDark ? Colors.white : AppColors.textPrimary,
             ),
           ),
-          content: Text(mensaje, style: AppTextStyles.bodyText),
+          content: Text(
+            mensaje,
+            style: AppTextStyles.bodyText.copyWith(
+              color: isDark ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -97,14 +112,16 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 'CANCELAR',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary.withOpacity(0.6),
+                  color: isDark
+                      ? Colors.grey.shade400
+                      : AppColors.textPrimary.withOpacity(0.6),
                 ),
               ),
             ),
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-                boxShadow: AppShadows.buttonShadow,
+                boxShadow: isDark ? [] : AppShadows.buttonShadow,
               ),
               child: ElevatedButton(
                 onPressed: () {
@@ -138,6 +155,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
     showDialog(
       context: context,
       builder: (context) {
+        final isDark = _isDark(context);
         return BackdropFilter(
           filter: ColorFilter.mode(
             Colors.black.withOpacity(0.5),
@@ -147,13 +165,15 @@ class _PerfilScreenState extends State<PerfilScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSizes.borderRadius * 1.5),
             ),
-            elevation: 16,
+            elevation: isDark ? 0 : 16,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [AppColors.primaryBackground, Colors.white],
+                  colors: _isDark(context)
+                      ? [AppColors.darkSurface, AppColors.darkSurfaceVariant]
+                      : [AppColors.primaryBackground, Colors.white],
                 ),
                 borderRadius: BorderRadius.circular(
                   AppSizes.borderRadius * 1.5,
@@ -183,7 +203,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                             color: AppColors.primary,
                             width: 3,
                           ),
-                          boxShadow: AppShadows.cardShadow,
+                          boxShadow: isDark ? [] : AppShadows.cardShadow,
                         ),
                         child: ClipOval(
                           child: Image.network(
@@ -266,7 +286,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                               borderRadius: BorderRadius.circular(
                                 AppSizes.borderRadius,
                               ),
-                              boxShadow: AppShadows.buttonShadow,
+                              boxShadow: isDark ? [] : AppShadows.buttonShadow,
                             ),
                             child: OutlinedButton(
                               onPressed: () {
@@ -287,7 +307,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
                                 'CANCELAR',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary.withOpacity(0.6),
+                                  color: _isDark(context)
+                                      ? Colors.grey.shade400
+                                      : AppColors.textPrimary.withOpacity(0.6),
                                 ),
                               ),
                             ),
@@ -300,7 +322,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                               borderRadius: BorderRadius.circular(
                                 AppSizes.borderRadius,
                               ),
-                              boxShadow: AppShadows.buttonShadow,
+                              boxShadow: isDark ? [] : AppShadows.buttonShadow,
                             ),
                             child: ElevatedButton(
                               onPressed: () {
@@ -348,7 +370,15 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }) {
     return Container(
       padding: const EdgeInsets.all(AppSizes.paddingMedium),
-      decoration: AppDecorations.cardDecoration.copyWith(color: Colors.white),
+      decoration: BoxDecoration(
+        color: _getCardColor(context),
+        border: Border.all(
+          color: AppColors.borderColor,
+          width: AppSizes.borderWidth,
+        ),
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
+      ),
       child: Row(
         children: [
           Container(
@@ -373,7 +403,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary.withOpacity(0.6),
+                    color: _isDark(context)
+                        ? Colors.grey.shade400
+                        : AppColors.textPrimary.withOpacity(0.6),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -388,13 +420,17 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     hintStyle: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary.withOpacity(0.8),
+                      color: _isDark(context)
+                          ? Colors.grey.shade500
+                          : AppColors.textPrimary.withOpacity(0.8),
                     ),
                   ),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: _isDark(context)
+                        ? Colors.white
+                        : AppColors.textPrimary,
                   ),
                 ),
               ],
@@ -409,8 +445,16 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Widget _buildEmailField() {
     return Container(
       padding: const EdgeInsets.all(AppSizes.paddingMedium),
-      decoration: AppDecorations.cardDecoration.copyWith(
-        color: AppColors.secondaryBackground.withOpacity(0.3),
+      decoration: BoxDecoration(
+        color: _isDark(context)
+            ? _getCardColor(context)
+            : AppColors.secondaryBackground.withOpacity(0.3),
+        border: Border.all(
+          color: AppColors.borderColor,
+          width: AppSizes.borderWidth,
+        ),
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
       ),
       child: Row(
         children: [
@@ -436,7 +480,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary.withOpacity(0.6),
+                    color: _isDark(context)
+                        ? Colors.grey.shade400
+                        : AppColors.textPrimary.withOpacity(0.6),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -445,7 +491,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: _isDark(context)
+                        ? Colors.white
+                        : AppColors.textPrimary,
                   ),
                 ),
               ],
@@ -453,7 +501,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
           ),
           Icon(
             Icons.lock_outline,
-            color: AppColors.textPrimary.withOpacity(0.5),
+            color: _isDark(context)
+                ? Colors.grey.shade400
+                : AppColors.textPrimary.withOpacity(0.5),
             size: 16,
           ),
         ],
@@ -471,7 +521,15 @@ class _PerfilScreenState extends State<PerfilScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.paddingLarge),
-      decoration: AppDecorations.cardDecoration.copyWith(color: Colors.white),
+      decoration: BoxDecoration(
+        color: _getCardColor(context),
+        border: Border.all(
+          color: AppColors.borderColor,
+          width: AppSizes.borderWidth,
+        ),
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -509,7 +567,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
             style: TextStyle(
               fontSize: 14,
               height: 1.5,
-              color: AppColors.textPrimary,
+              color: _isDark(context) ? Colors.white : AppColors.textPrimary,
             ),
           ),
         ],
@@ -532,13 +590,18 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [AppColors.primaryBackground, Colors.white],
+            colors: isDark
+                ? [AppColors.darkBackground2, AppColors.darkSurface]
+                : [AppColors.primaryBackground, Colors.white],
           ),
         ),
         child: Padding(
@@ -560,7 +623,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                             color: AppColors.primary,
                             width: 3,
                           ),
-                          boxShadow: AppShadows.cardShadow,
+                          boxShadow: isDark ? [] : AppShadows.cardShadow,
                         ),
                         child: ClipOval(
                           child: Image.network(
@@ -608,7 +671,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
                                 borderRadius: BorderRadius.circular(
                                   AppSizes.borderRadius,
                                 ),
-                                boxShadow: AppShadows.buttonShadow,
+                                boxShadow: isDark
+                                    ? []
+                                    : AppShadows.buttonShadow,
                               ),
                               child: ElevatedButton.icon(
                                 onPressed: () => _mostrarDialogo('Editar'),
@@ -643,7 +708,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
                                 borderRadius: BorderRadius.circular(
                                   AppSizes.borderRadius,
                                 ),
-                                boxShadow: AppShadows.buttonShadow,
+                                boxShadow: isDark
+                                    ? []
+                                    : AppShadows.buttonShadow,
                               ),
                               child: ElevatedButton.icon(
                                 onPressed: () => _mostrarDialogo('Compartir'),
@@ -706,7 +773,15 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Widget _buildInfoCard(String label, String value, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(AppSizes.paddingMedium),
-      decoration: AppDecorations.cardDecoration.copyWith(color: Colors.white),
+      decoration: BoxDecoration(
+        color: _getCardColor(context),
+        border: Border.all(
+          color: AppColors.borderColor,
+          width: AppSizes.borderWidth,
+        ),
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
+      ),
       child: Row(
         children: [
           Container(
@@ -731,7 +806,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary.withOpacity(0.6),
+                    color: _isDark(context)
+                        ? Colors.grey.shade400
+                        : AppColors.textPrimary.withOpacity(0.6),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -740,7 +817,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: _isDark(context)
+                        ? Colors.white
+                        : AppColors.textPrimary,
                   ),
                 ),
               ],
@@ -755,8 +834,16 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Widget _buildEmailCard() {
     return Container(
       padding: const EdgeInsets.all(AppSizes.paddingMedium),
-      decoration: AppDecorations.cardDecoration.copyWith(
-        color: AppColors.secondaryBackground.withOpacity(0.3),
+      decoration: BoxDecoration(
+        color: _isDark(context)
+            ? _getCardColor(context)
+            : AppColors.secondaryBackground.withOpacity(0.3),
+        border: Border.all(
+          color: AppColors.borderColor,
+          width: AppSizes.borderWidth,
+        ),
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
       ),
       child: Row(
         children: [
@@ -782,7 +869,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary.withOpacity(0.6),
+                    color: _isDark(context)
+                        ? Colors.grey.shade400
+                        : AppColors.textPrimary.withOpacity(0.6),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -791,7 +880,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: _isDark(context)
+                        ? Colors.white
+                        : AppColors.textPrimary,
                   ),
                 ),
               ],
@@ -799,7 +890,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
           ),
           Icon(
             Icons.lock_outline,
-            color: AppColors.textPrimary.withOpacity(0.5),
+            color: _isDark(context)
+                ? Colors.grey.shade400
+                : AppColors.textPrimary.withOpacity(0.5),
             size: 16,
           ),
         ],
@@ -817,7 +910,15 @@ class _PerfilScreenState extends State<PerfilScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.paddingLarge),
-      decoration: AppDecorations.cardDecoration.copyWith(color: Colors.white),
+      decoration: BoxDecoration(
+        color: _getCardColor(context),
+        border: Border.all(
+          color: AppColors.borderColor,
+          width: AppSizes.borderWidth,
+        ),
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -850,7 +951,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
             style: TextStyle(
               fontSize: 14,
               height: 1.5,
-              color: AppColors.textPrimary,
+              color: _isDark(context) ? Colors.white : AppColors.textPrimary,
             ),
           ),
         ],
