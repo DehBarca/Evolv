@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/overallProgressCard.dart';
 import '../widgets/daysNavbar.dart';
 import '../widgets/habitCard.dart';
-
+import '../constants/app_constants.dart';
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -56,22 +56,11 @@ class _HomePageState extends State<HomePage> {
     return "$dayName, ${date.day} de $monthName";
   }
 
-  String _getShortDayName(DateTime date) {
-    final shortDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-    return shortDays[date.weekday - 1];
-  }
-
   List<DateTime> _getWeekDays() {
     final today = DateTime.now();
     final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
 
     return List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
-  }
-
-  bool _isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year &&
-        date1.month == date2.month &&
-        date1.day == date2.day;
   }
 
   @override
@@ -158,7 +147,7 @@ class _HomePageState extends State<HomePage> {
             );
           }
         },
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: AppColors.acentoSuave,
         child: const Icon(Icons.add, size: 28),
       ),
     );
