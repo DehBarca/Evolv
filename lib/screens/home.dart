@@ -1,4 +1,4 @@
-import 'package:a/screens/addHabit.dart';
+import 'package:evolv/screens/addHabit.dart';
 import 'package:flutter/material.dart';
 import '../widgets/overallProgressCard.dart';
 import '../widgets/daysNavbar.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../constants/app_constants.dart'; // Agrega esta importación
+import '../constants/app_constants.dart';
 
 class HabitCard extends StatelessWidget {
   final String name;
@@ -46,6 +46,15 @@ class HabitCard extends StatelessWidget {
           progress == 1.0 ? Icons.check_circle : Icons.circle_outlined,
           color: progress == 1.0 ? AppColors.success : AppColors.borderColor,
         ),
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Hábito "$name" clickeado. Eso se marcara como completado si es booleano o se incrementará si es un contador.'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+        },
       ),
     );
   }

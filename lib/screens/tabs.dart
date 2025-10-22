@@ -1,7 +1,7 @@
-import 'package:a/screens/home.dart';
-import 'package:a/screens/perfil_screen.dart';
-import 'package:a/screens/settings.dart';
-import 'package:a/widgets/main_drawer.dart';
+import 'package:evolv/screens/home.dart';
+import 'package:evolv/screens/perfil_screen.dart';
+import 'package:evolv/screens/settings.dart';
+import 'package:evolv/widgets/main_drawer.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
 
