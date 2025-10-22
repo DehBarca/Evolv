@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../constants/app_constants.dart'; // Agrega esta importación
+import '../constants/app_constants.dart';
 
 class CalendarScreen extends StatefulWidget {
   final DateTime selectedDate;
@@ -41,11 +41,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Color _getProgressColor(double progress) {
-    if (progress >= 0.8) return AppColors.success;
-    if (progress >= 0.6) return Colors.lightGreen;
-    if (progress >= 0.4) return Colors.yellow;
-    if (progress >= 0.2) return Colors.orange;
-    return AppColors.error;
+    if (progress >= 0.8) return AppColors.progressExcellent;
+    if (progress >= 0.6) return AppColors.progressGood;
+    if (progress >= 0.4) return AppColors.progressRegular;
+    if (progress >= 0.2) return AppColors.progressLow;
+    return AppColors.progressVeryLow;
   }
 
   DateTime _getMonthFromIndex(int index) {
@@ -98,16 +98,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Calendario',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
         ),
         backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        iconTheme: IconThemeData(
+          color: isDark ? Colors.white : AppColors.primary,
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(_selectedDate),
@@ -117,31 +125,43 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           Positioned(
             top: 0,
-            left: AppSizes.paddingMedium,
-            right: AppSizes.paddingMedium,
+            left: 16,
+            right: 16,
             child: Container(
-              padding: const EdgeInsets.all(AppSizes.paddingMedium),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-                boxShadow: AppShadows.cardShadow,
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: isDark
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Leyenda de progreso',
-                    style: AppTextStyles.bodyText,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
                   ),
-                  SizedBox(height: AppSizes.paddingSmall),
-                  Row(
+                  const SizedBox(height: 12),
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _LegendItem('Excelente', Colors.green),
-                      _LegendItem('Bueno', Colors.lightGreen),
-                      _LegendItem('Regular', Colors.yellow),
-                      _LegendItem('Bajo', Colors.orange),
-                      _LegendItem('Muy bajo', Colors.red),
+                      _LegendItem('Excelente', AppColors.progressExcellent),
+                      _LegendItem('Bueno', AppColors.progressGood),
+                      _LegendItem('Regular', AppColors.progressRegular),
+                      _LegendItem('Bajo', AppColors.progressLow),
+                      _LegendItem('Muy bajo', AppColors.progressVeryLow),
                     ],
                   ),
                 ],
@@ -164,7 +184,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       // Título del mes
                       Text(
                         _getMonthName(currentMonth),
-                        style: AppTextStyles.heading2,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black,
+                        ),
                       ),
                       const SizedBox(height: AppSizes.paddingMedium),
 
@@ -222,17 +246,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             child: Container(
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.background,
-                                borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+                                    ? AppColors.action
+                                    : theme.cardColor,
+                                borderRadius: BorderRadius.circular(12),
                                 border: isToday && !isSelected
                                     ? Border.all(
                                         color: AppColors.primary,
-                                        width: AppSizes.borderWidth,
+                                        width: 2,
+                                      )
+                                    : isDark
+                                    ? Border.all(
+                                        color: AppColors.darkSurface,
+                                        width: 1,
                                       )
                                     : null,
                                 boxShadow: isSelected
-                                    ? AppShadows.buttonShadow
+                                    ? [
+                                        BoxShadow(
+                                          color: AppColors.action.withOpacity(
+                                            0.3,
+                                          ),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ]
                                     : null,
                               ),
                               child: Stack(
@@ -245,8 +282,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                         color: isSelected
-                                            ? AppColors.background
-                                            : AppColors.textPrimary,
+                                            ? Colors.white
+                                            : (isDark
+                                                  ? Colors.white
+                                                  : Colors.black87),
                                       ),
                                     ),
                                   ),
@@ -259,7 +298,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     child: Container(
                                       height: 4,
                                       decoration: BoxDecoration(
-                                        color: AppColors.borderColor,
+                                        color: isDark
+                                            ? AppColors.darkSurface
+                                            : AppColors.borderColor,
                                         borderRadius: BorderRadius.circular(2),
                                       ),
                                       child: FractionallySizedBox(
@@ -301,6 +342,9 @@ class _DayHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SizedBox(
       width: 40,
       child: Center(
@@ -309,7 +353,9 @@ class _DayHeader extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: AppColors.borderColor,
+            color: isDark
+                ? Colors.white70
+                : AppColors.textPrimary.withOpacity(0.6),
           ),
         ),
       ),

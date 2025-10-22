@@ -5,16 +5,17 @@ class HabitCard extends StatelessWidget {
   final String name;
   final double progress;
 
-  const HabitCard({
-    super.key,
-    required this.name,
-    required this.progress,
-  });
+  const HabitCard({super.key, required this.name, required this.progress});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.borderRadius)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+      ),
       elevation: 1.5,
       margin: const EdgeInsets.only(bottom: AppSizes.paddingSmall),
       child: ListTile(
@@ -24,9 +25,9 @@ class HabitCard extends StatelessWidget {
         ),
         title: Text(
           name,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: isDark ? Colors.white : AppColors.textPrimary,
           ),
         ),
         subtitle: Padding(

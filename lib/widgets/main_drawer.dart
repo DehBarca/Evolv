@@ -7,6 +7,9 @@ class MainDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Drawer(
       child: Column(
         children: [
@@ -16,7 +19,7 @@ class MainDrawer extends StatelessWidget {
               child: Text(
                 'Menú',
                 style: TextStyle(
-                  color: AppColors.background,
+                  color: Colors.white,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
@@ -27,7 +30,9 @@ class MainDrawer extends StatelessWidget {
             leading: Icon(Icons.home, color: AppColors.primary),
             title: Text(
               'Home',
-              style: TextStyle(color: AppColors.textPrimary),
+              style: TextStyle(
+                color: isDark ? Colors.white : AppColors.textPrimary,
+              ),
             ),
             onTap: () {
               Navigator.of(context).pop();
@@ -38,7 +43,9 @@ class MainDrawer extends StatelessWidget {
             leading: Icon(Icons.person, color: AppColors.primary),
             title: Text(
               'Profile',
-              style: TextStyle(color: AppColors.textPrimary),
+              style: TextStyle(
+                color: isDark ? Colors.white : AppColors.textPrimary,
+              ),
             ),
             onTap: () {
               Navigator.of(context).pop();
@@ -49,7 +56,9 @@ class MainDrawer extends StatelessWidget {
             leading: Icon(Icons.settings, color: AppColors.primary),
             title: Text(
               'Settings',
-              style: TextStyle(color: AppColors.textPrimary),
+              style: TextStyle(
+                color: isDark ? Colors.white : AppColors.textPrimary,
+              ),
             ),
             onTap: () {
               Navigator.of(context).pop();

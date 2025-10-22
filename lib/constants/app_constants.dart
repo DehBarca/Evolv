@@ -14,6 +14,18 @@ class AppColors {
   static const Color error = Colors.red;
   static const Color success = Colors.green;
 
+  // Colores de progreso
+  static const Color progressExcellent = Color(0xFF4CAF50); // Verde
+  static const Color progressGood = Color(0xFF8BC34A); // Verde claro
+  static const Color progressRegular = Color(0xFFFFEB3B); // Amarillo
+  static const Color progressLow = Color(0xFFFF9800); // Naranja
+  static const Color progressVeryLow = Color(0xFFF44336); // Rojo
+
+  // Colores de tema oscuro
+  static const Color darkSurface = Color(0xFF1E1E1E);
+  static const Color darkBackground2 = Color(0xFF121212);
+  static const Color darkSurfaceVariant = Color(0xFF2A2A2A);
+
   // Colores específicos
   static final Color shadowColor = Colors.grey.withValues(alpha: 0.5);
   static final Color borderColor = Colors.grey.shade300;
@@ -35,27 +47,6 @@ class AppSizes {
 
   static const double buttonHeight = 50.0;
   static const double maxContainerWidth = 400.0;
-}
-
-// Textos y strings
-class AppStrings {
-  static const String appName = 'Evolv';
-
-  // Login/Register
-  static const String login = 'Iniciar Sesión';
-  static const String register = 'Registrarse';
-  static const String email = 'Correo electrónico';
-  static const String password = 'Contraseña';
-  static const String confirmPassword = 'Confirmar contraseña';
-  static const String fullName = 'Nombre completo';
-  static const String forgotPassword = '¿Olvidaste tu contraseña?';
-  static const String noAccount = '¿No tienes cuenta? Regístrate';
-  static const String hasAccount = '¿Ya tienes cuenta? Inicia sesión';
-
-  // Mensajes
-  static const String welcomeMessage = 'Bienvenido a Evolv';
-  static const String loginSuccess = 'Inicio de sesión exitoso';
-  static const String registerSuccess = 'Registro exitoso';
 }
 
 // Estilos de texto

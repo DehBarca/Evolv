@@ -4,6 +4,7 @@ import '../widgets/overallProgressCard.dart';
 import '../widgets/daysNavbar.dart';
 import '../widgets/habitCard.dart';
 import '../constants/app_constants.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -67,17 +68,24 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final String today = _getFormattedDate(selectedDate);
     final weekDays = _getWeekDays();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
         title: Text(
           "Hola, $userName 👋",
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            color: isDark ? Colors.white : AppColors.primary,
+          ),
         ),
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black87,
         elevation: 0,
+        iconTheme: IconThemeData(
+          color: isDark ? Colors.white : AppColors.primary,
+        ),
       ),
       body: Column(
         children: [
@@ -85,7 +93,7 @@ class _HomePageState extends State<HomePage> {
             weekDays: weekDays,
             selectedDate: selectedDate,
             habits: habits,
-            onDateSelected: (date){
+            onDateSelected: (date) {
               setState(() {
                 selectedDate = date;
               });
@@ -99,7 +107,12 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   Text(
                     today,
-                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isDark
+                          ? Colors.white70
+                          : AppColors.textPrimary.withOpacity(0.6),
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -107,9 +120,13 @@ class _HomePageState extends State<HomePage> {
                   OverallProgressCard(habits: habits),
 
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     "Tus hábitos de hoy",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      color: isDark ? Colors.white : AppColors.obscureText,
+                    ),
                   ),
                   const SizedBox(height: 12),
 
@@ -119,7 +136,9 @@ class _HomePageState extends State<HomePage> {
                       itemCount: habits.length,
                       itemBuilder: (context, index) {
                         final habit = habits[index];
-                        return HabitCard(name: habit['name'], progress: habit['progress'],
+                        return HabitCard(
+                          name: habit['name'],
+                          progress: habit['progress'],
                         );
                       },
                     ),
@@ -142,7 +161,7 @@ class _HomePageState extends State<HomePage> {
                 content: Text(
                   'Hábito "${newHabit['name']}" creado exitosamente!',
                 ),
-                backgroundColor: Colors.green,
+                backgroundColor: AppColors.success,
               ),
             );
           }
@@ -152,6 +171,4 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  
 }
