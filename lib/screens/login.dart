@@ -1,8 +1,7 @@
-import 'package:evolv/screens/tabs.dart';
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
+import '../services/auth_service.dart';
 import 'register.dart';
-
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +13,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
+  bool _isLoading = false;
 
   void _showAlert(String title, String message) {
     showDialog(
@@ -33,21 +34,88 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _login() {
-    _showAlert(
-      'Función en desarrollo',
-      'El inicio de sesión está en proceso de implementación. Esta función permitirá autenticarte con tu correo electrónico y contraseña. POR AHORA LO MANDA A HOME',
-    );
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => TabsScreen()));
+  Future<void> _login() async {
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      _showAlert(
+        'Campos vacíos',
+        'Por favor, ingresa tu correo electrónico y contraseña.',
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _authService.signInWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+      // Login exitoso - El AuthWrapper se encargará de navegar automáticamente
+      // No reseteamos _isLoading aquí porque el widget será desmontado
+    } catch (e) {
+      // Solo en caso de error reseteamos el loading
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        _showAlert('Error de inicio de sesión', e.toString());
+      }
+    }
   }
 
-  void _forgotPassword() {
-    _showAlert(
-      'Recuperación de contraseña',
-      'La función de recuperación de contraseña está en desarrollo. Permitirá restablecer tu contraseña mediante un correo de verificación.',
-    );
+  Future<void> _forgotPassword() async {
+    if (_emailController.text.trim().isEmpty) {
+      _showAlert(
+        'Correo requerido',
+        'Por favor, ingresa tu correo electrónico para recuperar tu contraseña.',
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _authService.resetPassword(_emailController.text.trim());
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        _showAlert(
+          'Correo enviado',
+          'Se ha enviado un correo de recuperación a ${_emailController.text.trim()}. Revisa tu bandeja de entrada.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        _showAlert('Error', e.toString());
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _authService.signInWithGoogle();
+      // Login exitoso - El AuthWrapper se encargará de navegar automáticamente
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        _showAlert('Error de inicio de sesión con Google', e.toString());
+      }
+    }
   }
 
   void _navigateToRegister() {
@@ -89,8 +157,11 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-
-                const Icon(Icons.account_circle, size: 80, color: Colors.blue),
+                const Icon(
+                  Icons.account_circle,
+                  size: 80,
+                  color: AppColors.primary,
+                ),
 
                 const SizedBox(height: 20),
                 Text(
@@ -132,14 +203,90 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _login,
+                    onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.action,
                       foregroundColor: Colors.white,
+                      disabledBackgroundColor: AppColors.action.withOpacity(
+                        0.5,
+                      ),
                     ),
-                    child: const Text(
-                      'Iniciar Sesión',
-                      style: TextStyle(fontSize: 16),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Iniciar Sesión',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Divisor con texto "O"
+                Row(
+                  children: [
+                    Expanded(
+                      child: Divider(
+                        color: isDark ? Colors.white30 : Colors.grey.shade300,
+                        thickness: 1,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'O',
+                        style: TextStyle(
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Divider(
+                        color: isDark ? Colors.white30 : Colors.grey.shade300,
+                        thickness: 1,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // Botón de Google Sign In
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _signInWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: isDark ? Colors.white30 : AppColors.borderColor,
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: Image.network(
+                      'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                      height: 24,
+                      width: 24,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.g_mobiledata, size: 24),
+                    ),
+                    label: Text(
+                      'Continuar con Google',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
+                      ),
                     ),
                   ),
                 ),

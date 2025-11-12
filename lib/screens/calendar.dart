@@ -304,7 +304,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         child: Container(
                                           decoration: BoxDecoration(
                                             color: _getProgressColor(progress),
-                                            borderRadius: BorderRadius.circular(2),
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -316,7 +318,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           );
                         },
                       ),
-
                     ],
                   ),
                 );

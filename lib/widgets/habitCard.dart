@@ -49,7 +49,9 @@ class HabitCard extends StatelessWidget {
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Hábito "$name" clickeado. Eso se marcara como completado si es booleano o se incrementará si es un contador.'),
+              content: Text(
+                'Hábito "$name" clickeado. Eso se marcara como completado si es booleano o se incrementará si es un contador.',
+              ),
               duration: const Duration(seconds: 2),
               backgroundColor: AppColors.primary,
             ),

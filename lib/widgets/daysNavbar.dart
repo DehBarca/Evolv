@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../screens/calendar.dart'; 
-import '../constants/app_constants.dart'; 
+import '../screens/calendar.dart';
+import '../constants/app_constants.dart';
 
 class DaysNavbar extends StatefulWidget {
   final List<DateTime> weekDays;
@@ -82,7 +82,9 @@ class _DaysNavbarState extends State<DaysNavbar> {
                       widget.onDateSelected(date);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Día seleccionado: ${date.day}/${date.month}/${date.year}. Se irá al home de ese día.'),
+                          content: Text(
+                            'Día seleccionado: ${date.day}/${date.month}/${date.year}. Se irá al home de ese día.',
+                          ),
                           duration: const Duration(seconds: 2),
                           backgroundColor: AppColors.primary,
                         ),

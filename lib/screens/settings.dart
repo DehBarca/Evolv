@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:adaptive_theme/adaptive_theme.dart';
 import '../constants/app_constants.dart';
-
+import '../utils/auth_utils.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -38,6 +38,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'Próximamente',
       'La función "$feature" estará disponible en futuras actualizaciones.',
     );
+  }
+
+  Future<void> _showLogoutDialog() async {
+    return AuthUtils.showLogoutDialog(context);
   }
 
   @override
@@ -295,10 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.logout,
                 title: 'Cerrar sesión',
                 textColor: AppColors.error,
-                onTap: () => _showAlert(
-                  'Cerrar sesión',
-                  'La función de cerrar sesión estará disponible cuando se implemente el sistema de autenticación.',
-                ),
+                onTap: _showLogoutDialog,
               ),
             ),
 
