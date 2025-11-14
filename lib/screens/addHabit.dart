@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_constants.dart';
+import '../models/category.dart';
+import '../services/category_service.dart';
 
 class AddHabitScreen extends StatefulWidget {
   final bool isEditing;
@@ -18,53 +21,59 @@ class AddHabitScreen extends StatefulWidget {
 class _AddHabitScreenState extends State<AddHabitScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _targetController = TextEditingController();
-  final TextEditingController _incrementController = TextEditingController();
+  final CategoryService _categoryService = CategoryService();
 
   String _selectedFrequency = 'Diario';
-  String _selectedCategory = 'Salud';
-  String _selectedType = 'count';
+  Category? _selectedCategory;
   TimeOfDay _selectedTime = TimeOfDay.now();
+  List<Category> _userCategories = [];
+  bool _isLoadingCategories = true;
 
   final List<String> _frequencies = ['Diario', 'Semanal', 'Mensual'];
-  final List<String> _categories = [
-    'Salud',
-    'Productividad',
-    'Bienestar',
-    'Aprendizaje',
-    'Ejercicio',
-  ];
-  final List<String> _types = ['count', 'time'];
 
   @override
   void initState() {
     super.initState();
-    
-    // Si estamos editando, pre-llenar los campos
-    if (widget.isEditing && widget.habitData != null) {
-      final habit = widget.habitData!;
-      _nameController.text = habit['name'] ?? '';
-      _descriptionController.text = habit['description'] ?? '';
-      _targetController.text = habit['target']?.toString() ?? '1';
-      _incrementController.text = habit['increment']?.toString() ?? '1';
-      _selectedCategory = habit['category'] ?? 'Salud';
-      _selectedFrequency = habit['frequency'] ?? 'Diario';
-      _selectedType = habit['type'] ?? 'count';
-      
-      // Parsear la hora si existe
-      if (habit['time'] != null) {
-        final timeParts = habit['time'].toString().split(':');
-        if (timeParts.length == 2) {
-          _selectedTime = TimeOfDay(
-            hour: int.tryParse(timeParts[0]) ?? TimeOfDay.now().hour,
-            minute: int.tryParse(timeParts[1]) ?? TimeOfDay.now().minute,
-          );
-        }
+    _loadUserCategories();
+  }
+
+  Future<void> _loadUserCategories() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      final categories = await _categoryService.getUserCategories(userId);
+
+      // Si no tiene categorías, crear las predeterminadas
+      if (categories.isEmpty) {
+        await _categoryService.createDefaultCategories(userId);
+        final newCategories = await _categoryService.getUserCategories(userId);
+        setState(() {
+          _userCategories = newCategories;
+          _selectedCategory = newCategories.isNotEmpty
+              ? newCategories[0]
+              : null;
+          _isLoadingCategories = false;
+        });
+      } else {
+        setState(() {
+          _userCategories = categories;
+          _selectedCategory = categories[0];
+          _isLoadingCategories = false;
+        });
       }
-    } else {
-      // Valores por defecto para nuevos hábitos
-      _targetController.text = '1';
-      _incrementController.text = '1';
+    } catch (e) {
+      setState(() {
+        _isLoadingCategories = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar categorías: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -423,6 +432,33 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    if (_isLoadingCategories) {
+      return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 2,
+        color: theme.cardColor,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    if (_userCategories.isEmpty) {
+      return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 2,
+        color: theme.cardColor,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'No tienes categorías. Créalas desde Ajustes.',
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
@@ -444,27 +480,40 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _categories
+              children: _userCategories
                   .map(
                     (category) => ChoiceChip(
-                      label: Text(category),
-                      selected: _selectedCategory == category,
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            category.icon,
+                            size: 16,
+                            color: _selectedCategory?.id == category.id
+                                ? Colors.white
+                                : category.color,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(category.name),
+                        ],
+                      ),
+                      selected: _selectedCategory?.id == category.id,
                       onSelected: (selected) {
                         setState(() {
                           _selectedCategory = category;
                         });
                       },
-                      selectedColor: AppColors.action.withOpacity(0.3),
+                      selectedColor: category.color.withOpacity(0.7),
                       backgroundColor: isDark
                           ? Colors.grey.shade800
                           : Colors.grey.shade200,
                       labelStyle: TextStyle(
-                        color: _selectedCategory == category
+                        color: _selectedCategory?.id == category.id
                             ? Colors.white
                             : (isDark
                                   ? Colors.grey.shade300
                                   : Colors.grey.shade700),
-                        fontWeight: _selectedCategory == category
+                        fontWeight: _selectedCategory?.id == category.id
                             ? FontWeight.w600
                             : FontWeight.normal,
                       ),
@@ -643,11 +692,24 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       return;
     }
 
-    // Crear el hábito con todos los datos necesarios
-    final habit = {
+    if (_selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Por favor, selecciona una categoría'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    // Crear el nuevo hábito
+    final newHabit = {
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
-      'category': _selectedCategory,
+      'categoryId': _selectedCategory!.id,
+      'categoryName': _selectedCategory!.name,
+      'categoryIcon': _selectedCategory!.icon.codePoint,
+      'categoryColor': _selectedCategory!.color.value,
       'frequency': _selectedFrequency,
       'type': _selectedType,
       'target': int.tryParse(_targetController.text) ?? 1,
