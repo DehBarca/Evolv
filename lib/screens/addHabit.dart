@@ -29,7 +29,44 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   String _selectedType = 'count';
   Category? _selectedCategory;
   TimeOfDay _selectedTime = TimeOfDay.now();
-  List<Category> _userCategories = [];
+
+List<Category> _userCategories = [
+  Category(
+    id: 'dummy_salud',
+    name: 'Salud',
+    icon: Icons.favorite,
+    color: Colors.red,
+    userId: 'dummy',
+  ),
+  Category(
+    id: 'dummy_productividad',
+    name: 'Productividad',
+    icon: Icons.work,
+    color: Colors.blue,
+    userId: 'dummy',
+  ),
+  Category(
+    id: 'dummy_bienestar',
+    name: 'Bienestar',
+    icon: Icons.spa,
+    color: Colors.green,
+    userId: 'dummy',
+  ),
+  Category(
+    id: 'dummy_aprendizaje',
+    name: 'Aprendizaje',
+    icon: Icons.school,
+    color: Colors.orange,
+    userId: 'dummy',
+  ),
+  Category(
+    id: 'dummy_ejercicio',
+    name: 'Ejercicio',
+    icon: Icons.fitness_center,
+    color: Colors.purple,
+    userId: 'dummy',
+  ),
+];
   bool _isLoadingCategories = true;
 
   final List<String> _frequencies = ['Diario', 'Semanal', 'Mensual'];
