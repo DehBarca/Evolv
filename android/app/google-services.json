@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "572329223623",
+    "project_id": "evolv-a53b7",
+    "storage_bucket": "evolv-a53b7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:572329223623:android:138526e45a1517890265e2",
+        "android_client_info": {
+          "package_name": "com.apps.evolv"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "572329223623-6e1fmgtec3kv5spphesp85mgrsvi7lsd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUM9UWjAecd9Entf6vYSAaCzF_dTPFSUo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "572329223623-6e1fmgtec3kv5spphesp85mgrsvi7lsd.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "572329223623-29aaibevgpd67cbj482pv8membbpdg7m.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.apps.evolv"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:572329223623:android:35c56d037e4c49ca0265e2",
+        "android_client_info": {
+          "package_name": "com.example.a"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "572329223623-6e1fmgtec3kv5spphesp85mgrsvi7lsd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUM9UWjAecd9Entf6vYSAaCzF_dTPFSUo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "572329223623-6e1fmgtec3kv5spphesp85mgrsvi7lsd.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "572329223623-29aaibevgpd67cbj482pv8membbpdg7m.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.apps.evolv"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

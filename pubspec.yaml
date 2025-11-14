@@ -1,6 +1,6 @@
-name: a
-description: "A new Flutter project."
-publish_to: 'none'
+name: evolv
+description: "Your best habit tracker."
+publish_to: "none"
 version: 0.1.0
 
 environment:
@@ -9,11 +9,21 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  adaptive_theme: ^3.6.0
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  firebase_ui_auth: ^3.0.1
+  google_sign_in: ^6.2.2
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.jpeg"
 
 flutter:
   uses-material-design: true
