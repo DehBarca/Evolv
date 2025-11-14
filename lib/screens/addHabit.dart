@@ -7,12 +7,8 @@ import '../services/category_service.dart';
 class AddHabitScreen extends StatefulWidget {
   final bool isEditing;
   final Map<String, dynamic>? habitData;
-  
-  const AddHabitScreen({
-    super.key,
-    this.isEditing = false,
-    this.habitData,
-  });
+
+  const AddHabitScreen({super.key, this.isEditing = false, this.habitData});
 
   @override
   State<AddHabitScreen> createState() => _AddHabitScreenState();
@@ -22,8 +18,15 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final CategoryService _categoryService = CategoryService();
+  final TextEditingController _targetController = TextEditingController(
+    text: '1',
+  );
+  final TextEditingController _incrementController = TextEditingController(
+    text: '1',
+  );
 
   String _selectedFrequency = 'Diario';
+  String _selectedType = 'count';
   Category? _selectedCategory;
   TimeOfDay _selectedTime = TimeOfDay.now();
   List<Category> _userCategories = [];
@@ -35,6 +38,25 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   void initState() {
     super.initState();
     _loadUserCategories();
+    if (widget.isEditing && widget.habitData != null) {
+      _nameController.text = widget.habitData!['name'] ?? '';
+      _descriptionController.text = widget.habitData!['description'] ?? '';
+      _selectedType = widget.habitData!['type'] ?? 'count';
+      _selectedFrequency = widget.habitData!['frequency'] ?? 'Diario';
+      _targetController.text = (widget.habitData!['target'] ?? 1).toString();
+      _incrementController.text = (widget.habitData!['increment'] ?? 1)
+          .toString();
+
+      // Inicializar el tiempo
+      final timeString = widget.habitData!['time'] ?? '09:00';
+      final timeParts = timeString.split(':');
+      if (timeParts.length == 2) {
+        _selectedTime = TimeOfDay(
+          hour: int.tryParse(timeParts[0]) ?? 9,
+          minute: int.tryParse(timeParts[1]) ?? 0,
+        );
+      }
+    }
   }
 
   Future<void> _loadUserCategories() async {
@@ -50,15 +72,37 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
         final newCategories = await _categoryService.getUserCategories(userId);
         setState(() {
           _userCategories = newCategories;
-          _selectedCategory = newCategories.isNotEmpty
-              ? newCategories[0]
-              : null;
+
+          // Si está editando, buscar la categoría correcta
+          if (widget.isEditing && widget.habitData != null) {
+            final categoryId = widget.habitData!['categoryId'];
+            _selectedCategory = newCategories.firstWhere(
+              (cat) => cat.id == categoryId,
+              orElse: () => newCategories.isNotEmpty ? newCategories[0] : null!,
+            );
+          } else {
+            _selectedCategory = newCategories.isNotEmpty
+                ? newCategories[0]
+                : null;
+          }
+
           _isLoadingCategories = false;
         });
       } else {
         setState(() {
           _userCategories = categories;
-          _selectedCategory = categories[0];
+
+          // Si está editando, buscar la categoría correcta
+          if (widget.isEditing && widget.habitData != null) {
+            final categoryId = widget.habitData!['categoryId'];
+            _selectedCategory = categories.firstWhere(
+              (cat) => cat.id == categoryId,
+              orElse: () => categories[0],
+            );
+          } else {
+            _selectedCategory = categories[0];
+          }
+
           _isLoadingCategories = false;
         });
       }
@@ -340,7 +384,9 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _selectedType == 'time' ? 'Objetivo (minutos)' : 'Objetivo (cantidad)',
+              _selectedType == 'time'
+                  ? 'Objetivo (minutos)'
+                  : 'Objetivo (cantidad)',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -391,7 +437,9 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _selectedType == 'time' ? 'Incremento (minutos)' : 'Incremento por paso',
+              _selectedType == 'time'
+                  ? 'Incremento (minutos)'
+                  : 'Incremento por paso',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -714,11 +762,14 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       'type': _selectedType,
       'target': int.tryParse(_targetController.text) ?? 1,
       'increment': int.tryParse(_incrementController.text) ?? 1,
-      'time': '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
-      'progress': widget.isEditing ? (widget.habitData!['progress'] ?? 0.0) : 0.0,
+      'time':
+          '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+      'progress': widget.isEditing
+          ? (widget.habitData!['progress'] ?? 0.0)
+          : 0.0,
     };
 
-    Navigator.of(context).pop(habit);
+    Navigator.of(context).pop(newHabit);
   }
 
   @override
