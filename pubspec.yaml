@@ -10,6 +10,10 @@ dependencies:
   flutter:
     sdk: flutter
   adaptive_theme: ^3.6.0
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  firebase_ui_auth: ^3.0.1
+  google_sign_in: ^6.2.2
 
 dev_dependencies:
   flutter_test:
