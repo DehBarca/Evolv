@@ -1,9 +1,9 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'constants/app_constants.dart';
 import 'widgets/auth_wrapper.dart';
+import 'screens/manage_categories.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -114,6 +114,9 @@ class MyApp extends StatelessWidget {
         darkTheme: darkTheme,
         home: const AuthWrapper(),
         debugShowCheckedModeBanner: false,
+        routes: {
+          '/manage-categories': (context) => const ManageCategoriesScreen(),
+        },
       ),
     );
   }

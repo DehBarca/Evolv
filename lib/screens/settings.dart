@@ -93,6 +93,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: AppSizes.paddingLarge),
 
+            // Sección: Personalización
+            _buildSectionTitle('Personalización'),
+            _buildCard(
+              child: Column(
+                children: [
+                  _buildListTile(
+                    icon: Icons.category,
+                    title: 'Gestionar categorías',
+                    subtitle: 'Crea y edita tus categorías personalizadas',
+                    onTap: () {
+                      Navigator.of(context).pushNamed('/manage-categories');
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: AppSizes.paddingLarge),
+
             // Sección: Notificaciones
             _buildSectionTitle('Notificaciones'),
             _buildCard(
