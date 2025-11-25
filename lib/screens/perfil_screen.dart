@@ -1,591 +1,52 @@
 import 'package:flutter/material.dart';
-import '../models/perfil.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_constants.dart';
+import '../services/auth_service.dart';
 
-class PerfilScreen extends StatefulWidget {
-  final Perfil? perfil;
-
-  const PerfilScreen({super.key, this.perfil});
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
 
   @override
-  State<PerfilScreen> createState() => _PerfilScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _PerfilScreenState extends State<PerfilScreen> {
-  late String nombre;
-  late String apellidos;
-  late String edad;
-  late String email;
-  late String sobreMi;
-  late String objetivos;
-  late String imagenUrl;
-
-  TextEditingController nombreController = TextEditingController();
-  TextEditingController apellidosController = TextEditingController();
-  TextEditingController edadController = TextEditingController();
-  TextEditingController sobreMiController = TextEditingController();
-  TextEditingController objetivosController = TextEditingController();
-  TextEditingController imagenController = TextEditingController();
-
-  // Helper method para obtener colores según el tema
-  Color _getCardColor(BuildContext context) {
-    return Theme.of(context).cardColor;
-  }
-
-  bool _isDark(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark;
-  }
+class _ProfileScreenState extends State<ProfileScreen> {
+  final AuthService _authService = AuthService();
+  
+  String userName = "Usuario";
+  String userEmail = "";
+  String? photoURL;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _loadUserData();
+  }
 
-    // Si no se pasa un perfil, vamos a usar valores por defecto
-    if (widget.perfil != null) {
-      nombre = widget.perfil!.nombre;
-      apellidos = widget.perfil!.apellido;
-      edad = widget.perfil!.edad.toString();
-      email = widget.perfil!.email;
-      sobreMi = widget.perfil!.sobreMi;
-      objetivos = widget.perfil!.objetivos;
-      imagenUrl = widget.perfil!.fotoUrl ?? 'https://via.placeholder.com/120';
-    } else {
-      // Valores por defecto
-      nombre = 'Tu nombre';
-      apellidos = 'Tus apellidos';
-      edad = 'Tu edad';
-      email = 'usuario@ejemplo.com';
-      sobreMi =
-          'Habla un poco sobre ti aquí. Esta es una sección donde puedes describirte a ti mismo, tus intereses, pasatiempos, y cualquier otra información que quieras compartir.';
-      objetivos =
-          'Aquí puedes escribir tus objetivos personales o profesionales. Describe lo que esperas lograr, tus metas a corto y largo plazo, y cómo planeas alcanzarlas.';
-      imagenUrl = 'https://via.placeholder.com/120';
+  Future<void> _loadUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userData = await _authService.getUserData(user.uid);
+        
+        if (mounted) {
+          setState(() {
+            userName = userData?['name'] ?? user.displayName ?? 'Usuario';
+            userEmail = user.email ?? '';
+            photoURL = userData?['photoURL'] ?? user.photoURL;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-  }
-
-  // Función para mostrar diálogos
-  void _mostrarDialogo(String boton) {
-    String mensaje = '';
-    String titulo = '';
-
-    switch (boton) {
-      case 'Editar':
-        _mostrarDialogoEditar();
-        return;
-      case 'Compartir':
-        titulo = 'Compartir Perfil';
-        mensaje = 'Vas a compartir tu perfil con otros';
-        break;
-      case 'Mis Objetivos':
-        titulo = 'Mis Objetivos';
-        mensaje = 'Vas a ver o editar tus objetivos';
-        break;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return AlertDialog(
-          backgroundColor: Theme.of(context).cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-          ),
-          title: Text(
-            titulo,
-            style: AppTextStyles.heading2.copyWith(
-              color: isDark ? Colors.white : AppColors.textPrimary,
-            ),
-          ),
-          content: Text(
-            mensaje,
-            style: AppTextStyles.bodyText.copyWith(
-              color: isDark ? Colors.white : AppColors.textPrimary,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'CANCELAR',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? Colors.grey.shade400
-                      : AppColors.textPrimary.withOpacity(0.6),
-                ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-                boxShadow: isDark ? [] : AppShadows.buttonShadow,
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.action,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-                  ),
-                ),
-                child: Text('ACEPTAR', style: AppTextStyles.buttonText),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Diálogo de edición
-  void _mostrarDialogoEditar() {
-    nombreController.text = nombre;
-    apellidosController.text = apellidos;
-    edadController.text = edad;
-    sobreMiController.text = sobreMi;
-    objetivosController.text = objetivos;
-    imagenController.text = imagenUrl;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        final isDark = _isDark(context);
-        return BackdropFilter(
-          filter: ColorFilter.mode(
-            Colors.black.withOpacity(0.5),
-            BlendMode.darken,
-          ),
-          child: Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSizes.borderRadius * 1.5),
-            ),
-            elevation: isDark ? 0 : 16,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: _isDark(context)
-                      ? [AppColors.darkSurface, AppColors.darkSurfaceVariant]
-                      : [AppColors.primaryBackground, Colors.white],
-                ),
-                borderRadius: BorderRadius.circular(
-                  AppSizes.borderRadius * 1.5,
-                ),
-              ),
-              padding: const EdgeInsets.all(AppSizes.paddingLarge),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Editar Perfil',
-                      style: AppTextStyles.heading1.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    // Widget foto de perfil
-                    Center(
-                      child: Container(
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.primary,
-                            width: 3,
-                          ),
-                          boxShadow: isDark ? [] : AppShadows.cardShadow,
-                        ),
-                        child: ClipOval(
-                          child: Image.network(
-                            imagenController.text.isNotEmpty
-                                ? imagenController.text
-                                : 'https://via.placeholder.com/120',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: AppColors.secondaryBackground,
-                                child: Icon(
-                                  Icons.person,
-                                  size: AppSizes.iconSizeLarge,
-                                  color: AppColors.primary,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSizes.paddingMedium),
-
-                    _buildEditField(
-                      controller: imagenController,
-                      label: 'URL de la imagen',
-                      icon: Icons.image,
-                      hintText: 'https://ejemplo.com/imagen.jpg',
-                    ),
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    _buildEditField(
-                      controller: nombreController,
-                      label: 'Nombre',
-                      icon: Icons.person,
-                    ),
-                    const SizedBox(height: AppSizes.paddingMedium),
-
-                    _buildEditField(
-                      controller: apellidosController,
-                      label: 'Apellidos',
-                      icon: Icons.people,
-                    ),
-                    const SizedBox(height: AppSizes.paddingMedium),
-
-                    _buildEditField(
-                      controller: edadController,
-                      label: 'Edad',
-                      icon: Icons.cake,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: AppSizes.paddingMedium),
-
-                    _buildEmailField(),
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    _buildEditSection(
-                      controller: sobreMiController,
-                      title: 'Sobre mí',
-                      icon: Icons.info_outline,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    _buildEditSection(
-                      controller: objetivosController,
-                      title: 'Mis objetivos',
-                      icon: Icons.flag_outlined,
-                      color: AppColors.success,
-                    ),
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    // Widget botones editar
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(
-                                AppSizes.borderRadius,
-                              ),
-                              boxShadow: isDark ? [] : AppShadows.buttonShadow,
-                            ),
-                            child: OutlinedButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppSizes.paddingMedium,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    AppSizes.borderRadius,
-                                  ),
-                                ),
-                                side: BorderSide(color: AppColors.borderColor),
-                              ),
-                              child: Text(
-                                'CANCELAR',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: _isDark(context)
-                                      ? Colors.grey.shade400
-                                      : AppColors.textPrimary.withOpacity(0.6),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSizes.paddingMedium),
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(
-                                AppSizes.borderRadius,
-                              ),
-                              boxShadow: isDark ? [] : AppShadows.buttonShadow,
-                            ),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                _guardarCambios();
-                                Navigator.of(context).pop();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.action,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppSizes.paddingMedium,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    AppSizes.borderRadius,
-                                  ),
-                                ),
-                              ),
-                              child: Text(
-                                'GUARDAR',
-                                style: AppTextStyles.buttonText,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Widget campos de edición
-  Widget _buildEditField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    String? hintText,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.paddingMedium),
-      decoration: BoxDecoration(
-        color: _getCardColor(context),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.paddingSmall),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: AppSizes.iconSizeSmall,
-            ),
-          ),
-          const SizedBox(width: AppSizes.paddingMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _isDark(context)
-                        ? Colors.grey.shade400
-                        : AppColors.textPrimary.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                TextField(
-                  controller: controller,
-                  keyboardType: keyboardType,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    border: InputBorder.none,
-                    hintText: hintText,
-                    hintStyle: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: _isDark(context)
-                          ? Colors.grey.shade500
-                          : AppColors.textPrimary.withOpacity(0.8),
-                    ),
-                  ),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _isDark(context)
-                        ? Colors.white
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget campo email no editable
-  Widget _buildEmailField() {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.paddingMedium),
-      decoration: BoxDecoration(
-        color: _isDark(context)
-            ? _getCardColor(context)
-            : AppColors.secondaryBackground.withOpacity(0.3),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.paddingSmall),
-            decoration: BoxDecoration(
-              color: AppColors.acentoSuave.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.email,
-              color: AppColors.acentoSuave,
-              size: AppSizes.iconSizeSmall,
-            ),
-          ),
-          const SizedBox(width: AppSizes.paddingMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Email',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _isDark(context)
-                        ? Colors.grey.shade400
-                        : AppColors.textPrimary.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  email,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _isDark(context)
-                        ? Colors.white
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.lock_outline,
-            color: _isDark(context)
-                ? Colors.grey.shade400
-                : AppColors.textPrimary.withOpacity(0.5),
-            size: 16,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget secciones de edición
-  Widget _buildEditSection({
-    required TextEditingController controller,
-    required String title,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSizes.paddingLarge),
-      decoration: BoxDecoration(
-        color: _getCardColor(context),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: AppSizes.paddingMedium),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.paddingMedium),
-          Container(height: 1, color: AppColors.borderColor),
-          const SizedBox(height: AppSizes.paddingMedium),
-          TextField(
-            controller: controller,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-            ),
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: _isDark(context) ? Colors.white : AppColors.textPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _guardarCambios() {
-    setState(() {
-      nombre = nombreController.text;
-      apellidos = apellidosController.text;
-      edad = edadController.text;
-      sobreMi = sobreMiController.text;
-      objetivos = objetivosController.text;
-      imagenUrl = imagenController.text.isNotEmpty
-          ? imagenController.text
-          : 'https://via.placeholder.com/120';
-    });
   }
 
   @override
@@ -593,365 +54,180 @@ class _PerfilScreenState extends State<PerfilScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? [AppColors.darkBackground2, AppColors.darkSurface]
-                : [AppColors.primaryBackground, Colors.white],
+      appBar: AppBar(
+        title: Text(
+          'Perfil',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : AppColors.primary,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.paddingLarge),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: ListView(
-                  children: [
-                    // Widget foto de perfil principal
-                    Center(
-                      child: Container(
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.primary,
-                            width: 3,
-                          ),
-                          boxShadow: isDark ? [] : AppShadows.cardShadow,
-                        ),
-                        child: ClipOval(
-                          child: Image.network(
-                            imagenUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: AppColors.secondaryBackground,
-                                child: Icon(
-                                  Icons.person,
-                                  size: AppSizes.iconSizeLarge,
-                                  color: AppColors.primary,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(
+          color: isDark ? Colors.white : AppColors.primary,
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Avatar y información básica
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: AppColors.primary,
+                    backgroundImage: photoURL != null ? NetworkImage(photoURL!) : null,
+                    child: photoURL == null
+                        ? Text(
+                            userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    userName,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    userEmail,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isDark ? Colors.white70 : AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Implementar edición de perfil
+                    },
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Editar perfil'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-
-                    const SizedBox(height: AppSizes.paddingXLarge),
-
-                    // Widget cards de información
-                    _buildInfoCard('Nombre', nombre, Icons.person),
-                    const SizedBox(height: AppSizes.paddingMedium),
-                    _buildInfoCard('Apellidos', apellidos, Icons.people),
-                    const SizedBox(height: AppSizes.paddingMedium),
-                    _buildInfoCard('Edad', edad, Icons.cake),
-                    const SizedBox(height: AppSizes.paddingMedium),
-                    _buildEmailCard(),
-
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    // Widget botones principales
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              right: AppSizes.paddingSmall,
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  AppSizes.borderRadius,
-                                ),
-                                boxShadow: isDark
-                                    ? []
-                                    : AppShadows.buttonShadow,
-                              ),
-                              child: ElevatedButton.icon(
-                                onPressed: () => _mostrarDialogo('Editar'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: AppSizes.paddingMedium,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      AppSizes.borderRadius,
-                                    ),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.edit, size: 18),
-                                label: Text(
-                                  'Editar',
-                                  style: AppTextStyles.buttonText,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              left: AppSizes.paddingSmall,
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  AppSizes.borderRadius,
-                                ),
-                                boxShadow: isDark
-                                    ? []
-                                    : AppShadows.buttonShadow,
-                              ),
-                              child: ElevatedButton.icon(
-                                onPressed: () => _mostrarDialogo('Compartir'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.success,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: AppSizes.paddingMedium,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      AppSizes.borderRadius,
-                                    ),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.share, size: 18),
-                                label: Text(
-                                  'Compartir',
-                                  style: AppTextStyles.buttonText,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: AppSizes.paddingXLarge),
-
-                    // Widget sección sobre mí
-                    _buildSectionCard(
-                      'Sobre mí',
-                      sobreMi,
-                      Icons.info_outline,
-                      AppColors.primary,
-                    ),
-
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    // Widget sección objetivos
-                    _buildSectionCard(
-                      'Mis objetivos',
-                      objetivos,
-                      Icons.flag_outlined,
-                      AppColors.success,
-                    ),
-
-                    const SizedBox(height: AppSizes.paddingXLarge),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Estadísticas (placeholder por ahora)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Estadísticas',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatCard('Hábitos', '5', Icons.task_alt),
+                      _buildStatCard('Racha', '7 días', Icons.local_fire_department),
+                      _buildStatCard('Progreso', '78%', Icons.trending_up),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // Widget card información personal
-  Widget _buildInfoCard(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.paddingMedium),
-      decoration: BoxDecoration(
-        color: _getCardColor(context),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.paddingSmall),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: AppSizes.iconSizeSmall,
-            ),
-          ),
-          const SizedBox(width: AppSizes.paddingMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _isDark(context)
-                        ? Colors.grey.shade400
-                        : AppColors.textPrimary.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _isDark(context)
-                        ? Colors.white
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildStatCard(String title, String value, IconData icon) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-  // Widget card email
-  Widget _buildEmailCard() {
     return Container(
-      padding: const EdgeInsets.all(AppSizes.paddingMedium),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _isDark(context)
-            ? _getCardColor(context)
-            : AppColors.secondaryBackground.withOpacity(0.3),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.paddingSmall),
-            decoration: BoxDecoration(
-              color: AppColors.acentoSuave.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.email,
-              color: AppColors.acentoSuave,
-              size: AppSizes.iconSizeSmall,
-            ),
-          ),
-          const SizedBox(width: AppSizes.paddingMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Email',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _isDark(context)
-                        ? Colors.grey.shade400
-                        : AppColors.textPrimary.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  email,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _isDark(context)
-                        ? Colors.white
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.lock_outline,
-            color: _isDark(context)
-                ? Colors.grey.shade400
-                : AppColors.textPrimary.withOpacity(0.5),
-            size: 16,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget secciones con cards
-  Widget _buildSectionCard(
-    String title,
-    String content,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSizes.paddingLarge),
-      decoration: BoxDecoration(
-        color: _getCardColor(context),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
+        color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: AppSizes.paddingMedium),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
+          Icon(
+            icon,
+            size: 24,
+            color: AppColors.primary,
           ),
-          const SizedBox(height: AppSizes.paddingMedium),
-          Container(height: 1, color: AppColors.borderColor),
-          const SizedBox(height: AppSizes.paddingMedium),
+          const SizedBox(height: 8),
           Text(
-            content,
+            value,
             style: TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: _isDark(context) ? Colors.white : AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white70 : AppColors.textSecondary,
             ),
           ),
         ],

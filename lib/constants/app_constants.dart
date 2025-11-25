@@ -10,6 +10,7 @@ class AppColors {
   static const Color darkBackground = Color(0xFF461B9C);
   static const Color obscureText = Color(0xFF240A56);
   static const Color textPrimary = Color(0xFF240A56); // Agregado
+  static const Color textSecondary = Color(0xFF666666); // Agregado
   static const Color background = Color(0xFFF1EFFD); // Agregado
   static const Color error = Colors.red;
   static const Color success = Colors.green;

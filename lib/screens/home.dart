@@ -4,6 +4,7 @@ import '../widgets/overallProgressCard.dart';
 import '../widgets/daysNavbar.dart';
 import '../widgets/habitCard.dart';
 import '../constants/app_constants.dart';
+import '../services/auth_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,7 +14,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final String userName = "Diego";
+  final AuthService _authService = AuthService();
+  String userName = "Usuario"; // Valor por defecto
 
   DateTime selectedDate = DateTime.now();
 
@@ -202,6 +204,26 @@ class _HomePageState extends State<HomePage> {
     final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
 
     return List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  // Cargar el nombre del usuario
+  Future<void> _loadUserName() async {
+    try {
+      final name = await _authService.getUserName();
+      if (mounted) {
+        setState(() {
+          userName = name;
+        });
+      }
+    } catch (e) {
+      print('Error loading user name: $e');
+    }
   }
 
   @override
