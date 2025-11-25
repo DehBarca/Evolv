@@ -181,7 +181,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Nombre completo',
+                    labelText: 'Username',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.person),
                   ),

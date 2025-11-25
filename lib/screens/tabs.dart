@@ -34,7 +34,7 @@ class _TabScreenState extends State<TabsScreen> {
           });
         },
       ),
-      body: [HomePage(), PerfilScreen(), SettingsScreen()][currentPageIndex],
+      body: [HomePage(), ProfileScreen(), SettingsScreen()][currentPageIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentPageIndex,
         onDestinationSelected: (int index) {

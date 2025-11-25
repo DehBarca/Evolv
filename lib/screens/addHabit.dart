@@ -115,7 +115,7 @@ List<Category> _userCategories = [
             final categoryId = widget.habitData!['categoryId'];
             _selectedCategory = newCategories.firstWhere(
               (cat) => cat.id == categoryId,
-              orElse: () => newCategories.isNotEmpty ? newCategories[0] : null!,
+              orElse: () => newCategories[0],
             );
           } else {
             _selectedCategory = newCategories.isNotEmpty
