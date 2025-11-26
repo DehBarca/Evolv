@@ -11,11 +11,9 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Si está cargando, mostrar un indicador de carga
+        // Mostrar splash screen mientras se verifica el estado de autenticación
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return _buildSplashScreen();
         }
 
         // Si hay un usuario autenticado, ir a TabsScreen (Home)
@@ -26,6 +24,41 @@ class AuthWrapper extends StatelessWidget {
         // Si no hay usuario autenticado, mostrar Login
         return const LoginScreen();
       },
+    );
+  }
+
+  Widget _buildSplashScreen() {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF8A69EE), Color(0xFF6C31E5)],
+          ),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.trending_up, size: 80, color: Colors.white),
+              SizedBox(height: 20),
+              Text(
+                'Evolv',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 40),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

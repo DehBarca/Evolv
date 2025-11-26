@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_constants.dart';
 import '../models/category.dart';
@@ -30,43 +32,43 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   Category? _selectedCategory;
   TimeOfDay _selectedTime = TimeOfDay.now();
 
-List<Category> _userCategories = [
-  Category(
-    id: 'dummy_salud',
-    name: 'Salud',
-    icon: Icons.favorite,
-    color: Colors.red,
-    userId: 'dummy',
-  ),
-  Category(
-    id: 'dummy_productividad',
-    name: 'Productividad',
-    icon: Icons.work,
-    color: Colors.blue,
-    userId: 'dummy',
-  ),
-  Category(
-    id: 'dummy_bienestar',
-    name: 'Bienestar',
-    icon: Icons.spa,
-    color: Colors.green,
-    userId: 'dummy',
-  ),
-  Category(
-    id: 'dummy_aprendizaje',
-    name: 'Aprendizaje',
-    icon: Icons.school,
-    color: Colors.orange,
-    userId: 'dummy',
-  ),
-  Category(
-    id: 'dummy_ejercicio',
-    name: 'Ejercicio',
-    icon: Icons.fitness_center,
-    color: Colors.purple,
-    userId: 'dummy',
-  ),
-];
+  List<Category> _userCategories = [
+    Category(
+      id: 'dummy_salud',
+      name: 'Salud',
+      icon: Icons.favorite,
+      color: Colors.red,
+      userId: 'dummy',
+    ),
+    Category(
+      id: 'dummy_productividad',
+      name: 'Productividad',
+      icon: Icons.work,
+      color: Colors.blue,
+      userId: 'dummy',
+    ),
+    Category(
+      id: 'dummy_bienestar',
+      name: 'Bienestar',
+      icon: Icons.spa,
+      color: Colors.green,
+      userId: 'dummy',
+    ),
+    Category(
+      id: 'dummy_aprendizaje',
+      name: 'Aprendizaje',
+      icon: Icons.school,
+      color: Colors.orange,
+      userId: 'dummy',
+    ),
+    Category(
+      id: 'dummy_ejercicio',
+      name: 'Ejercicio',
+      icon: Icons.fitness_center,
+      color: Colors.orange,
+      userId: 'dummy',
+    ),
+  ];
   bool _isLoadingCategories = true;
 
   final List<String> _frequencies = ['Diario', 'Semanal', 'Mensual'];
@@ -166,7 +168,7 @@ List<Category> _userCategories = [
     return Scaffold(
       backgroundColor: isDark
           ? theme.scaffoldBackgroundColor
-          : AppColors.primaryBackground,
+          : Provider.of<ThemeProvider>(context).backgroundColor,
       appBar: AppBar(
         title: Text(
           widget.isEditing ? 'Editar Hábito' : 'Nuevo Hábito',
@@ -178,7 +180,9 @@ List<Category> _userCategories = [
         ),
         backgroundColor: Colors.transparent,
         iconTheme: IconThemeData(
-          color: isDark ? Colors.white : AppColors.primary,
+          color: isDark
+              ? Colors.white
+              : Provider.of<ThemeProvider>(context).primaryColor,
         ),
         elevation: 0,
         actions: [
@@ -189,7 +193,7 @@ List<Category> _userCategories = [
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.action,
+                color: Provider.of<ThemeProvider>(context).primaryColor,
               ),
             ),
           ),
@@ -261,7 +265,9 @@ List<Category> _userCategories = [
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primary),
+                  borderSide: BorderSide(
+                    color: Provider.of<ThemeProvider>(context).primaryColor,
+                  ),
                 ),
                 filled: true,
                 fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
@@ -312,7 +318,9 @@ List<Category> _userCategories = [
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primary),
+                  borderSide: BorderSide(
+                    color: Provider.of<ThemeProvider>(context).primaryColor,
+                  ),
                 ),
                 filled: true,
                 fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
@@ -357,7 +365,9 @@ List<Category> _userCategories = [
                         _selectedType = 'count';
                       });
                     },
-                    selectedColor: AppColors.action.withOpacity(0.3),
+                    selectedColor: Provider.of<ThemeProvider>(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.3),
                     backgroundColor: isDark
                         ? Colors.grey.shade800
                         : Colors.grey.shade200,
@@ -383,7 +393,9 @@ List<Category> _userCategories = [
                         _selectedType = 'time';
                       });
                     },
-                    selectedColor: AppColors.action.withOpacity(0.3),
+                    selectedColor: Provider.of<ThemeProvider>(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.3),
                     backgroundColor: isDark
                         ? Colors.grey.shade800
                         : Colors.grey.shade200,
@@ -448,7 +460,9 @@ List<Category> _userCategories = [
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primary),
+                  borderSide: BorderSide(
+                    color: Provider.of<ThemeProvider>(context).primaryColor,
+                  ),
                 ),
                 filled: true,
                 fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
@@ -501,7 +515,9 @@ List<Category> _userCategories = [
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primary),
+                  borderSide: BorderSide(
+                    color: Provider.of<ThemeProvider>(context).primaryColor,
+                  ),
                 ),
                 filled: true,
                 fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
@@ -516,6 +532,7 @@ List<Category> _userCategories = [
   Widget _buildCategorySection() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     if (_isLoadingCategories) {
       return Card(
@@ -565,46 +582,50 @@ List<Category> _userCategories = [
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _userCategories
-                  .map(
-                    (category) => ChoiceChip(
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            category.icon,
-                            size: 16,
-                            color: _selectedCategory?.id == category.id
-                                ? Colors.white
-                                : category.color,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(category.name),
-                        ],
-                      ),
-                      selected: _selectedCategory?.id == category.id,
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedCategory = category;
-                        });
-                      },
-                      selectedColor: category.color.withOpacity(0.7),
-                      backgroundColor: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade200,
-                      labelStyle: TextStyle(
+              children: _userCategories.map((category) {
+                final catColor =
+                    (category.color == Colors.orange ||
+                        category.color == AppColors.primary)
+                    ? themeProvider.primaryColor
+                    : category.color;
+
+                return ChoiceChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        category.icon,
+                        size: 16,
                         color: _selectedCategory?.id == category.id
                             ? Colors.white
-                            : (isDark
-                                  ? Colors.grey.shade300
-                                  : Colors.grey.shade700),
-                        fontWeight: _selectedCategory?.id == category.id
-                            ? FontWeight.w600
-                            : FontWeight.normal,
+                            : catColor,
                       ),
-                    ),
-                  )
-                  .toList(),
+                      const SizedBox(width: 4),
+                      Text(category.name),
+                    ],
+                  ),
+                  selected: _selectedCategory?.id == category.id,
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedCategory = category;
+                    });
+                  },
+                  selectedColor: catColor.withValues(alpha: 0.7),
+                  backgroundColor: isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade200,
+                  labelStyle: TextStyle(
+                    color: _selectedCategory?.id == category.id
+                        ? Colors.white
+                        : (isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade700),
+                    fontWeight: _selectedCategory?.id == category.id
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                );
+              }).toList(),
             ),
           ],
         ),
@@ -648,7 +669,9 @@ List<Category> _userCategories = [
                               _selectedFrequency = frequency;
                             });
                           },
-                          selectedColor: AppColors.action.withOpacity(0.3),
+                          selectedColor: Provider.of<ThemeProvider>(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.3),
                           backgroundColor: isDark
                               ? Colors.grey.shade800
                               : Colors.grey.shade200,
@@ -718,7 +741,10 @@ List<Category> _userCategories = [
                         color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
                     ),
-                    Icon(Icons.access_time, color: AppColors.primary),
+                    Icon(
+                      Icons.access_time,
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
                   ],
                 ),
               ),
@@ -736,7 +762,7 @@ List<Category> _userCategories = [
       child: ElevatedButton(
         onPressed: _saveHabit,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.action,
+          backgroundColor: Provider.of<ThemeProvider>(context).primaryColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -794,7 +820,9 @@ List<Category> _userCategories = [
       'categoryId': _selectedCategory!.id,
       'categoryName': _selectedCategory!.name,
       'categoryIcon': _selectedCategory!.icon.codePoint,
-      'categoryColor': _selectedCategory!.color.value,
+      'categoryColor': _selectedCategory!
+          .color
+          .value, // Keep for backward compatibility with stored data
       'frequency': _selectedFrequency,
       'type': _selectedType,
       'target': int.tryParse(_targetController.text) ?? 1,

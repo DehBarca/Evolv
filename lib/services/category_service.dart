@@ -103,7 +103,7 @@ class CategoryService {
           id: '${userId}_ejercicio',
           name: 'Ejercicio',
           icon: Icons.fitness_center,
-          color: Colors.purple,
+          color: Colors.orange,
           userId: userId,
         ),
       ];

@@ -1,10 +1,15 @@
-import 'package:evolv/screens/addHabit.dart';
 import 'package:flutter/material.dart';
-import '../widgets/overallProgressCard.dart';
-import '../widgets/daysNavbar.dart';
-import '../widgets/habitCard.dart';
+import 'package:provider/provider.dart';
+import '../screens/add_habit.dart';
+import '../widgets/overall_progress_card.dart';
+import '../widgets/days_navbar.dart';
+import '../widgets/habit_card.dart';
+import '../widgets/custom_snackbar.dart';
+import '../widgets/custom_dialog.dart';
 import '../constants/app_constants.dart';
-import '../services/auth_service.dart';
+import '../providers/theme_provider.dart';
+import '../services/habit_service.dart';
+import '../services/user_profile_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,64 +19,41 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final AuthService _authService = AuthService();
-  String userName = "Usuario"; // Valor por defecto
-
+  String userName = "Usuario"; // Se actualizará desde UserProfileService
   DateTime selectedDate = DateTime.now();
 
-  final List<Map<String, dynamic>> habits = [
-    {
-      "name": "Correr",
-      "progress": 0.8,
-      "type": "time", // tiempo en minutos
-      "target": 30, // 30 minutos
-      "increment": 5, // incremento de 5 minutos
-    },
-    {
-      "name": "Leer 20 min",
-      "progress": 0.5,
-      "type": "time",
-      "target": 20, // 20 minutos
-      "increment": 5, // incremento de 5 minutos
-    },
-    {
-      "name": "Meditar",
-      "progress": 0.2,
-      "type": "time",
-      "target": 15, // 15 minutos
-      "increment": 5, // incremento de 5 minutos
-    },
-    {
-      "name": "Beber agua",
-      "progress": 1.0,
-      "type": "count",
-      "target": 8, // 8 vasos
-      "increment": 1, // incremento de 1 vaso
-    },
-    {
-      "name": "Estudiar",
-      "progress": 0.4,
-      "type": "time",
-      "target": 60, // 60 minutos
-      "increment": 15, // incremento de 15 minutos
-    },
-    {
-      "name": "3 obras buenas",
-      "progress": 0.66,
-      "type": "count",
-      "target": 3, // 3 obras
-      "increment": 1, // incremento de 1 obra (33.33%)
-    },
-    {
-      "name": "Ejercicio",
-      "progress": 0,
-      "type": "count",
-      "target": 1, // 3 obras
-      "increment": 1, // incremento de 1 obra (33.33%)
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeServices();
+    });
+  }
+
+  Future<void> _initializeServices() async {
+    if (!mounted) return;
+
+    final habitService = Provider.of<HabitService>(context, listen: false);
+    final userService = Provider.of<UserProfileService>(context, listen: false);
+
+    await habitService.initializeHabits();
+    final profile = await userService.getCurrentUserProfile();
+
+    if (mounted && profile != null) {
+      setState(() {
+        userName = profile.fullName.isNotEmpty ? profile.fullName : "Usuario";
+      });
+    }
+  }
+
+  // Datos ahora se obtienen del HabitService
   void _editHabit(int index) async {
-    final habit = habits[index];
+    final habitService = Provider.of<HabitService>(context, listen: false);
+    final habitsList = habitService.habits;
+    if (index >= habitsList.length) return;
+
+    final habit = habitsList[index];
+    if (!mounted) return;
 
     final editedHabit = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
@@ -79,93 +61,67 @@ class _HomePageState extends State<HomePage> {
       ),
     );
 
-    if (editedHabit != null) {
-      setState(() {
-        habits[index] = editedHabit;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Hábito "${editedHabit['name']}" actualizado!'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+    if (editedHabit != null && mounted) {
+      final habitService = Provider.of<HabitService>(context, listen: false);
+      await habitService.updateHabit(habit['id'], editedHabit);
+
+      if (mounted) {
+        CustomSnackBar.showSuccess(
+          context: context,
+          message: 'Hábito "${editedHabit['name']}" actualizado!',
+        );
+      }
     }
   }
 
-  void _deleteHabit(int index) {
-    final habitName = habits[index]['name'];
+  void _deleteHabit(int index) async {
+    final habitService = Provider.of<HabitService>(context, listen: false);
+    final habitsList = habitService.habits;
+    if (index >= habitsList.length) return;
 
-    showDialog(
+    final habit = habitsList[index];
+    final habitName = habit['name'];
+
+    if (!mounted) return;
+
+    final confirmed = await CustomDialog.showConfirmationDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Eliminar hábito'),
-          content: Text('¿Estás seguro de que quieres eliminar "$habitName"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  habits.removeAt(index);
-                });
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Hábito "$habitName" eliminado'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-              },
-              child: const Text(
-                'Eliminar',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
-        );
-      },
+      title: 'Eliminar hábito',
+      content: '¿Estás seguro de que quieres eliminar "$habitName"?',
+      confirmText: 'Eliminar',
+      isDangerous: true,
     );
-  }
 
-  // Método para incrementar progreso según el tipo de hábito
-  void _incrementHabit(int index) {
-    setState(() {
-      final habit = habits[index];
-      final double currentProgress = habit['progress'];
-      final int target = habit['target'];
-      final int increment = habit['increment'];
+    if (confirmed == true && mounted) {
+      final habitService = Provider.of<HabitService>(context, listen: false);
+      await habitService.deleteHabit(habit['id']);
 
-      if (currentProgress < 1.0) {
-        // Calcula el incremento como porcentaje del objetivo
-        double progressIncrement = increment / target;
-        habits[index]['progress'] = (currentProgress + progressIncrement).clamp(
-          0.0,
-          1.0,
+      if (mounted) {
+        CustomSnackBar.showError(
+          context: context,
+          message: 'Hábito "$habitName" eliminado',
         );
       }
-    });
+    }
+  } // Método para incrementar progreso según el tipo de hábito
+
+  void _incrementHabit(int index) {
+    final habitService = Provider.of<HabitService>(context, listen: false);
+    final habitsList = habitService.habits;
+    if (index >= habitsList.length) return;
+
+    final habit = habitsList[index];
+    habitService.incrementHabit(habit['id']);
   }
 
   // Método para decrementar progreso según el tipo de hábito
   void _decrementHabit(int index) {
-    setState(() {
-      final habit = habits[index];
-      final double currentProgress = habit['progress'];
-      final int target = habit['target'];
-      final int increment = habit['increment'];
+    final habitService = Provider.of<HabitService>(context, listen: false);
+    final habitsList = habitService.habits;
+    if (index >= habitsList.length) return;
 
-      if (currentProgress > 0.0) {
-        // Calcula el decremento como porcentaje del objetivo
-        double progressDecrement = increment / target;
-        habits[index]['progress'] = (currentProgress - progressDecrement).clamp(
-          0.0,
-          1.0,
-        );
-      }
-    });
+    final habit = habitsList[index];
+    habitService.decrementHabit(habit['id']);
   }
 
   String _getFormattedDate(DateTime date) {
@@ -207,26 +163,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _loadUserName();
-  }
-
-  // Cargar el nombre del usuario
-  Future<void> _loadUserName() async {
-    try {
-      final name = await _authService.getUserName();
-      if (mounted) {
-        setState(() {
-          userName = name;
-        });
-      }
-    } catch (e) {
-      print('Error loading user name: $e');
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final String today = _getFormattedDate(selectedDate);
     final weekDays = _getWeekDays();
@@ -235,18 +171,24 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "Hola, $userName 👋",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-            color: isDark ? Colors.white : AppColors.primary,
-          ),
+        title: Consumer<ThemeProvider>(
+          builder: (context, themeProvider, child) {
+            return Text(
+              "Hola, $userName 👋",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: isDark ? Colors.white : themeProvider.primaryColor,
+              ),
+            );
+          },
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(
-          color: isDark ? Colors.white : AppColors.primary,
+          color: isDark
+              ? Colors.white
+              : context.read<ThemeProvider>().primaryColor,
         ),
         actions: [
           IconButton(
@@ -257,93 +199,124 @@ class _HomePageState extends State<HomePage> {
                       builder: (context) => const AddHabitScreen(),
                     ),
                   );
-              if (newHabit != null) {
-                setState(() {
-                  habits.add(newHabit);
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Hábito "${newHabit['name']}" creado exitosamente!',
-                    ),
-                    backgroundColor: AppColors.success,
-                  ),
+              if (newHabit != null && mounted) {
+                final habitService = Provider.of<HabitService>(
+                  context,
+                  listen: false,
                 );
+                await habitService.addHabit(newHabit);
+
+                if (mounted) {
+                  CustomSnackBar.showSuccess(
+                    context: context,
+                    message:
+                        'Hábito "${newHabit['name']}" creado exitosamente!',
+                  );
+                }
               }
             },
-            icon: Icon(
-              Icons.add,
-              size: 28,
-              color: isDark ? Colors.white : AppColors.primary,
+            icon: Consumer<ThemeProvider>(
+              builder: (context, themeProvider, child) {
+                return Icon(
+                  Icons.add,
+                  size: 28,
+                  color: isDark ? Colors.white : themeProvider.primaryColor,
+                );
+              },
             ),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          DaysNavbar(
-            weekDays: weekDays,
-            selectedDate: selectedDate,
-            habits: habits,
-            onDateSelected: (date) {
-              setState(() {
-                selectedDate = date;
-              });
-            },
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+      body: Consumer<HabitService>(
+        builder: (context, habitService, child) {
+          if (habitService.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (habitService.error != null) {
+            return Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    today,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: isDark
-                          ? Colors.white70
-                          : AppColors.textPrimary.withOpacity(0.6),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Progreso general
-                  OverallProgressCard(habits: habits),
-
-                  const SizedBox(height: 24),
-                  Text(
-                    "Tus hábitos de hoy",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                      color: isDark ? Colors.white : AppColors.obscureText,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Lista de hábitos
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: habits.length,
-                      itemBuilder: (context, index) {
-                        final habit = habits[index];
-                        return HabitCard(
-                          name: habit['name'],
-                          progress: habit['progress'],
-                          onIncrement: () => _incrementHabit(index),
-                          onDecrement: () => _decrementHabit(index),
-                          onLongPress: () => _deleteHabit(index),
-                          onEdit: () => _editHabit(index),
-                        );
-                      },
-                    ),
+                  Text('Error: ${habitService.error}'),
+                  ElevatedButton(
+                    onPressed: () => habitService.initializeHabits(),
+                    child: const Text('Reintentar'),
                   ),
                 ],
               ),
-            ),
-          ),
-        ],
+            );
+          }
+
+          final habits = habitService.habits;
+
+          return Column(
+            children: [
+              DaysNavbar(
+                weekDays: weekDays,
+                selectedDate: selectedDate,
+                habits: habits,
+                onDateSelected: (date) {
+                  setState(() {
+                    selectedDate = date;
+                  });
+                },
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        today,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: isDark
+                              ? Colors.white70
+                              : AppColors.textPrimary.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Progreso general
+                      OverallProgressCard(habits: habits),
+
+                      const SizedBox(height: 24),
+                      Text(
+                        "Tus hábitos de hoy",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          color: isDark ? Colors.white : AppColors.obscureText,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Lista de hábitos
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: habits.length,
+                          itemBuilder: (context, index) {
+                            final habit = habits[index];
+                            return HabitCard(
+                              name: habit['name'],
+                              progress: habit['progress'],
+                              onIncrement: () => _incrementHabit(index),
+                              onDecrement: () => _decrementHabit(index),
+                              onLongPress: () => _deleteHabit(index),
+                              onEdit: () => _editHabit(index),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

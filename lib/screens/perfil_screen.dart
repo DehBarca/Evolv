@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
 import '../services/auth_service.dart';
+import '../providers/theme_provider.dart';
+import 'edit_profile.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -12,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
-  
+
   String userName = "Usuario";
   String userEmail = "";
   String? photoURL;
@@ -29,7 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         final userData = await _authService.getUserData(user.uid);
-        
+
         if (mounted) {
           setState(() {
             userName = userData?['name'] ?? user.displayName ?? 'Usuario';
@@ -40,7 +43,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     } catch (e) {
-      print('Error loading user data: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -55,26 +57,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Perfil',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : AppColors.primary,
-          ),
+        title: Consumer<ThemeProvider>(
+          builder: (context, themeProvider, child) {
+            return Text(
+              'Perfil',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : themeProvider.primaryColor,
+              ),
+            );
+          },
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(
-          color: isDark ? Colors.white : AppColors.primary,
+          color: isDark ? Colors.white : Theme.of(context).primaryColor,
         ),
       ),
       body: SingleChildScrollView(
@@ -89,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -97,20 +99,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: AppColors.primary,
-                    backgroundImage: photoURL != null ? NetworkImage(photoURL!) : null,
-                    child: photoURL == null
-                        ? Text(
-                            userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          )
-                        : null,
+                  Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, child) {
+                      return CircleAvatar(
+                        radius: 50,
+                        backgroundColor: themeProvider.primaryColor,
+                        backgroundImage: photoURL != null
+                            ? NetworkImage(photoURL!)
+                            : null,
+                        child: photoURL == null
+                            ? Text(
+                                userName.isNotEmpty
+                                    ? userName[0].toUpperCase()
+                                    : 'U',
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : null,
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -130,23 +140,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Implementar edición de perfil
+                  Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, child) {
+                      return ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EditProfileScreen(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Editar perfil'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeProvider.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      );
                     },
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Editar perfil'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
                   ),
                 ],
               ),
@@ -162,7 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -184,7 +203,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildStatCard('Hábitos', '5', Icons.task_alt),
-                      _buildStatCard('Racha', '7 días', Icons.local_fire_department),
+                      _buildStatCard(
+                        'Racha',
+                        '7 días',
+                        Icons.local_fire_department,
+                      ),
                       _buildStatCard('Progreso', '78%', Icons.trending_up),
                     ],
                   ),
@@ -209,10 +232,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            size: 24,
-            color: AppColors.primary,
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              return Icon(icon, size: 24, color: themeProvider.primaryColor);
+            },
           ),
           const SizedBox(height: 8),
           Text(
