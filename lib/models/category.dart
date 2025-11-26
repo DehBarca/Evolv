@@ -39,7 +39,7 @@ class Category {
         map['iconCodePoint'] ?? Icons.category.codePoint,
         fontFamily: map['iconFontFamily'],
       ),
-      color: Color(map['colorValue'] ?? Colors.blue.value),
+      color: Color(map['colorValue'] ?? 0xFF2196F3),
       userId: map['userId'] ?? '',
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
+import '../providers/theme_provider.dart';
 
 class CalendarScreen extends StatefulWidget {
   final DateTime selectedDate;
@@ -100,232 +102,238 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Calendario',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: IconThemeData(
-          color: isDark ? Colors.white : AppColors.primary,
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(_selectedDate),
-        ),
-      ),
-      body: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 16,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: isDark
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Leyenda de progreso',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _LegendItem('Excelente', AppColors.progressExcellent),
-                      _LegendItem('Bueno', AppColors.progressGood),
-                      _LegendItem('Regular', AppColors.progressRegular),
-                      _LegendItem('Bajo', AppColors.progressLow),
-                      _LegendItem('Muy bajo', AppColors.progressVeryLow),
-                    ],
-                  ),
-                ],
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(
+              'Calendario',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            iconTheme: IconThemeData(
+              color: isDark ? Colors.white : themeProvider.primaryColor,
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).pop(_selectedDate),
+            ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(top: 120),
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: 24, // 2 años hacia atrás
-              itemBuilder: (context, index) {
-                final currentMonth = _getMonthFromIndex(index);
-                final calendarDays = _getCalendarDays(currentMonth);
-
-                return Padding(
-                  padding: const EdgeInsets.all(AppSizes.paddingMedium),
+          body: Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: isDark
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                  ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _getMonthName(currentMonth),
+                        'Leyenda de progreso',
                         style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                           color: isDark ? Colors.white : Colors.black,
                         ),
                       ),
-                      const SizedBox(height: AppSizes.paddingMedium),
-
+                      const SizedBox(height: 12),
                       const Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _DayHeader('Lun'),
-                          _DayHeader('Mar'),
-                          _DayHeader('Mié'),
-                          _DayHeader('Jue'),
-                          _DayHeader('Vie'),
-                          _DayHeader('Sáb'),
-                          _DayHeader('Dom'),
+                          _LegendItem('Excelente', AppColors.progressExcellent),
+                          _LegendItem('Bueno', AppColors.progressGood),
+                          _LegendItem('Regular', AppColors.progressRegular),
+                          _LegendItem('Bajo', AppColors.progressLow),
+                          _LegendItem('Muy bajo', AppColors.progressVeryLow),
                         ],
                       ),
-                      const SizedBox(height: AppSizes.paddingMedium),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 120),
+                child: ListView.builder(
+                  controller: _scrollController,
+                  itemCount: 24, // 2 años hacia atrás
+                  itemBuilder: (context, index) {
+                    final currentMonth = _getMonthFromIndex(index);
+                    final calendarDays = _getCalendarDays(currentMonth);
 
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 7,
-                              crossAxisSpacing: AppSizes.paddingSmall,
-                              mainAxisSpacing: AppSizes.paddingSmall,
+                    return Padding(
+                      padding: const EdgeInsets.all(AppSizes.paddingMedium),
+                      child: Column(
+                        children: [
+                          Text(
+                            _getMonthName(currentMonth),
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black,
                             ),
-                        itemCount: calendarDays.length,
-                        itemBuilder: (context, gridIndex) {
-                          final date = calendarDays[gridIndex];
+                          ),
+                          const SizedBox(height: AppSizes.paddingMedium),
 
-                          if (date == null) {
-                            return Container();
-                          }
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _DayHeader('Lun'),
+                              _DayHeader('Mar'),
+                              _DayHeader('Mié'),
+                              _DayHeader('Jue'),
+                              _DayHeader('Vie'),
+                              _DayHeader('Sáb'),
+                              _DayHeader('Dom'),
+                            ],
+                          ),
+                          const SizedBox(height: AppSizes.paddingMedium),
 
-                          final progress = _getDayProgress(date);
-                          final isSelected =
-                              date.year == _selectedDate.year &&
-                              date.month == _selectedDate.month &&
-                              date.day == _selectedDate.day;
-                          final isToday =
-                              date.year == DateTime.now().year &&
-                              date.month == DateTime.now().month &&
-                              date.day == DateTime.now().day;
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 7,
+                                  crossAxisSpacing: AppSizes.paddingSmall,
+                                  mainAxisSpacing: AppSizes.paddingSmall,
+                                ),
+                            itemCount: calendarDays.length,
+                            itemBuilder: (context, gridIndex) {
+                              final date = calendarDays[gridIndex];
 
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedDate = date;
-                              });
-                              Navigator.of(context).pop(date);
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.action
-                                    : theme.cardColor,
-                                borderRadius: BorderRadius.circular(12),
-                                border: isToday && !isSelected
-                                    ? Border.all(
-                                        color: AppColors.primary,
-                                        width: 2,
-                                      )
-                                    : isDark
-                                    ? Border.all(
-                                        color: AppColors.darkSurface,
-                                        width: 1,
-                                      )
-                                    : null,
-                                boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: AppColors.action.withOpacity(
-                                            0.3,
-                                          ),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: Stack(
-                                children: [
-                                  // Número del día
-                                  Center(
-                                    child: Text(
-                                      date.day.toString(),
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : (isDark
-                                                  ? Colors.white
-                                                  : Colors.black87),
-                                      ),
-                                    ),
+                              if (date == null) {
+                                return Container();
+                              }
+
+                              final progress = _getDayProgress(date);
+                              final isSelected =
+                                  date.year == _selectedDate.year &&
+                                  date.month == _selectedDate.month &&
+                                  date.day == _selectedDate.day;
+                              final isToday =
+                                  date.year == DateTime.now().year &&
+                                  date.month == DateTime.now().month &&
+                                  date.day == DateTime.now().day;
+
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedDate = date;
+                                  });
+                                  Navigator.of(context).pop(date);
+                                },
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? themeProvider.primaryColor
+                                        : theme.cardColor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: isToday && !isSelected
+                                        ? Border.all(
+                                            color: themeProvider.primaryColor,
+                                            width: 2,
+                                          )
+                                        : isDark
+                                        ? Border.all(
+                                            color: AppColors.darkSurface,
+                                            width: 1,
+                                          )
+                                        : null,
+                                    boxShadow: isSelected
+                                        ? [
+                                            BoxShadow(
+                                              color: themeProvider.primaryColor
+                                                  .withValues(alpha: 0.3),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ]
+                                        : null,
                                   ),
-
-                                  // Indicador de progreso (barra inferior)
-                                  Positioned(
-                                    bottom: AppSizes.paddingSmall / 2,
-                                    left: AppSizes.paddingSmall / 2,
-                                    right: AppSizes.paddingSmall / 2,
-                                    child: Container(
-                                      height: 4,
-                                      decoration: BoxDecoration(
-                                        color: isDark
-                                            ? AppColors.darkSurface
-                                            : AppColors.borderColor,
-                                        borderRadius: BorderRadius.circular(2),
+                                  child: Stack(
+                                    children: [
+                                      // Número del día
+                                      Center(
+                                        child: Text(
+                                          date.day.toString(),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : (isDark
+                                                      ? Colors.white
+                                                      : Colors.black87),
+                                          ),
+                                        ),
                                       ),
-                                      child: FractionallySizedBox(
-                                        alignment: Alignment.centerLeft,
-                                        widthFactor: progress,
+
+                                      // Indicador de progreso (barra inferior)
+                                      Positioned(
+                                        bottom: AppSizes.paddingSmall / 2,
+                                        left: AppSizes.paddingSmall / 2,
+                                        right: AppSizes.paddingSmall / 2,
                                         child: Container(
+                                          height: 4,
                                           decoration: BoxDecoration(
-                                            color: _getProgressColor(progress),
+                                            color: isDark
+                                                ? AppColors.darkSurface
+                                                : AppColors.borderColor,
                                             borderRadius: BorderRadius.circular(
                                               2,
                                             ),
                                           ),
+                                          child: FractionallySizedBox(
+                                            alignment: Alignment.centerLeft,
+                                            widthFactor: progress,
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: _getProgressColor(
+                                                  progress,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(2),
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -350,7 +358,7 @@ class _DayHeader extends StatelessWidget {
             fontWeight: FontWeight.w600,
             color: isDark
                 ? Colors.white70
-                : AppColors.textPrimary.withOpacity(0.6),
+                : AppColors.textPrimary.withValues(alpha: 0.6),
           ),
         ),
       ),

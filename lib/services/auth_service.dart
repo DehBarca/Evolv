@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -63,7 +64,7 @@ class AuthService {
   Future<User?> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
+
       if (googleUser == null) return null;
 
       final GoogleSignInAuthentication googleAuth =
@@ -74,7 +75,9 @@ class AuthService {
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential result = await _auth.signInWithCredential(credential);
+      final UserCredential result = await _auth.signInWithCredential(
+        credential,
+      );
       final User? user = result.user;
 
       if (user != null) {
@@ -102,7 +105,7 @@ class AuthService {
         'lastLoginAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error creating user document: $e');
+      debugPrint('Error creating user document: $e');
     }
   }
 
@@ -112,7 +115,7 @@ class AuthService {
       final doc = await _firestore.collection('users').doc(uid).get();
       return doc.data();
     } catch (e) {
-      print('Error getting user data: $e');
+      debugPrint('Error getting user data: $e');
       return null;
     }
   }
@@ -122,17 +125,14 @@ class AuthService {
     try {
       await _firestore.collection('users').doc(uid).update(data);
     } catch (e) {
-      print('Error updating user data: $e');
+      debugPrint('Error updating user data: $e');
     }
   }
 
   // Cerrar sesión
   Future<void> signOut() async {
     try {
-      await Future.wait([
-        _auth.signOut(),
-        _googleSignIn.signOut(),
-      ]);
+      await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
     } catch (e) {
       throw Exception('Error al cerrar sesión: ${e.toString()}');
     }

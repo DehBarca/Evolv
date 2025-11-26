@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/category.dart';
 import '../services/category_service.dart';
@@ -46,8 +48,8 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
   final List<Color> _availableColors = [
     Colors.red,
     Colors.pink,
-    Colors.purple,
-    Colors.deepPurple,
+    Colors.orange,
+    Colors.amber,
     Colors.indigo,
     Colors.blue,
     Colors.lightBlue,
@@ -73,7 +75,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
     return Scaffold(
       backgroundColor: isDark
           ? theme.scaffoldBackgroundColor
-          : AppColors.primaryBackground,
+          : Provider.of<ThemeProvider>(context).backgroundColor,
       appBar: AppBar(
         title: Text(
           'Gestionar Categorías',
@@ -85,7 +87,9 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
         ),
         backgroundColor: Colors.transparent,
         iconTheme: IconThemeData(
-          color: isDark ? Colors.white : AppColors.primary,
+          color: isDark
+              ? Colors.white
+              : Provider.of<ThemeProvider>(context).primaryColor,
         ),
         elevation: 0,
       ),
@@ -135,7 +139,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddCategoryDialog(),
-        backgroundColor: AppColors.action,
+        backgroundColor: Provider.of<ThemeProvider>(context).primaryColor,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
@@ -151,7 +155,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: category.color.withOpacity(0.2),
+            color: category.color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(category.icon, color: category.color, size: 28),
@@ -168,7 +172,10 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: Icon(Icons.edit, color: AppColors.primary),
+              icon: Icon(
+                Icons.edit,
+                color: Provider.of<ThemeProvider>(context).primaryColor,
+              ),
               onPressed: () => _showEditCategoryDialog(category),
             ),
             IconButton(
@@ -225,12 +232,16 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppColors.action.withOpacity(0.2)
+                                ? Provider.of<ThemeProvider>(
+                                    context,
+                                  ).primaryColor.withValues(alpha: 0.2)
                                 : Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: isSelected
-                                  ? AppColors.action
+                                  ? Provider.of<ThemeProvider>(
+                                      context,
+                                    ).primaryColor
                                   : Colors.transparent,
                               width: 2,
                             ),
@@ -288,7 +299,9 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.action,
+                  backgroundColor: Provider.of<ThemeProvider>(
+                    context,
+                  ).primaryColor,
                 ),
                 child: const Text(
                   'Crear',
@@ -346,12 +359,16 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppColors.action.withOpacity(0.2)
+                                ? Provider.of<ThemeProvider>(
+                                    context,
+                                  ).primaryColor.withValues(alpha: 0.2)
                                 : Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: isSelected
-                                  ? AppColors.action
+                                  ? Provider.of<ThemeProvider>(
+                                      context,
+                                    ).primaryColor
                                   : Colors.transparent,
                               width: 2,
                             ),
@@ -409,7 +426,9 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.action,
+                  backgroundColor: Provider.of<ThemeProvider>(
+                    context,
+                  ).primaryColor,
                 ),
                 child: const Text(
                   'Guardar',
