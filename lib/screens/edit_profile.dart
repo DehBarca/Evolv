@@ -86,18 +86,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       await _profileService.updateUserProfile(profile);
 
-      _showSuccessDialog(
-        'Perfil actualizado',
-        'Los datos de tu perfil se han guardado correctamente.',
-      );
-    } catch (e) {
-      _showErrorDialog(
-        'Error al guardar',
-        'No se pudo actualizar el perfil: ${e.toString()}',
-      );
-    }
+      if (mounted) {
+        setState(() => _isLoading = false);
 
-    setState(() => _isLoading = false);
+        _showSuccessDialog(
+          'Perfil actualizado',
+          'Los datos de tu perfil se han guardado correctamente.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+
+        _showErrorDialog(
+          'Error al guardar',
+          'No se pudo actualizar el perfil: ${e.toString()}',
+        );
+      }
+    }
   }
 
   Future<void> _selectImageFromGallery() async {

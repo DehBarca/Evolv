@@ -245,6 +245,9 @@ class HabitService extends ChangeNotifier {
       final newProgress = (currentProgress + progressIncrement).clamp(0.0, 1.0);
 
       updateHabit(habitId, {'progress': newProgress});
+
+      // Guardar progreso diario automáticamente
+      saveDailyProgress();
     }
   }
 
@@ -262,6 +265,9 @@ class HabitService extends ChangeNotifier {
       final newProgress = (currentProgress - progressDecrement).clamp(0.0, 1.0);
 
       updateHabit(habitId, {'progress': newProgress});
+
+      // Guardar progreso diario automáticamente
+      saveDailyProgress();
     }
   }
 
@@ -273,6 +279,104 @@ class HabitService extends ChangeNotifier {
       (total, habit) => total + (habit['progress'] ?? 0.0),
     );
     return totalProgress / _habits.length;
+  }
+
+  /// Obtiene la racha actual del usuario (días consecutivos con actividad)
+  Future<int> getCurrentStreak() async {
+    if (_userId.isEmpty) return 0;
+
+    try {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      int streak = 0;
+      DateTime checkDate = today;
+
+      // Revisar historial hacia atrás hasta encontrar un día sin actividad
+      for (int i = 0; i < 365; i++) {
+        // Limitar a 1 año
+        final dateStr = _formatDate(checkDate);
+        final hasActivity = await _hasActivityOnDate(dateStr);
+
+        if (hasActivity) {
+          streak++;
+          checkDate = checkDate.subtract(const Duration(days: 1));
+        } else {
+          // Si es hoy y no hay actividad, la racha es 0
+          if (i == 0) return 0;
+          break;
+        }
+      }
+
+      return streak;
+    } catch (e) {
+      debugPrint('Error calculating streak: $e');
+      return 0;
+    }
+  }
+
+  Future<bool> _hasActivityOnDate(String dateStr) async {
+    if (_userId.isEmpty) return false;
+
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('habit_history')
+          .doc(dateStr)
+          .get();
+
+      if (!snapshot.exists) return false;
+
+      final data = snapshot.data();
+      if (data == null) return false;
+
+      // Verificar si algún hábito tuvo progreso ese día
+      final habits = data['habits'] as List<dynamic>?;
+      if (habits == null || habits.isEmpty) return false;
+
+      return habits.any((h) => (h['progress'] ?? 0.0) > 0.0);
+    } catch (e) {
+      debugPrint('Error checking activity for date $dateStr: $e');
+      return false;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Guarda el progreso del día en el historial
+  Future<void> saveDailyProgress() async {
+    if (_userId.isEmpty || _habits.isEmpty) return;
+
+    try {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final dateStr = _formatDate(today);
+
+      await _firestore
+          .collection('users')
+          .doc(_userId)
+          .collection('habit_history')
+          .doc(dateStr)
+          .set({
+            'date': Timestamp.fromDate(today),
+            'habits': _habits
+                .map(
+                  (h) => {
+                    'id': h['id'],
+                    'name': h['name'],
+                    'progress': h['progress'],
+                    'completed': (h['progress'] ?? 0.0) >= 1.0,
+                  },
+                )
+                .toList(),
+            'overallProgress': overallProgress,
+            'savedAt': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint('Error saving daily progress: $e');
+    }
   }
 
   void clearError() {

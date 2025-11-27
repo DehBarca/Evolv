@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
-import '../services/auth_service.dart';
+import '../services/user_profile_service.dart';
+import '../services/habit_service.dart';
 import '../providers/theme_provider.dart';
 import 'edit_profile.dart';
 
@@ -14,12 +15,26 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final AuthService _authService = AuthService();
+  final UserProfileService _profileService = UserProfileService();
 
-  String userName = "Usuario";
+  String firstName = "Usuario";
+  String lastName = "";
   String userEmail = "";
+  int age = 0;
+  String bio = "";
+  String goals = "";
   String? photoURL;
   bool _isLoading = true;
+
+  // Estadísticas de hábitos
+  int totalHabits = 0;
+  int currentStreak = 0;
+  double overallProgress = 0.0;
+
+  String get fullName {
+    final name = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+    return name.isNotEmpty ? name : 'Usuario';
+  }
 
   @override
   void initState() {
@@ -28,19 +43,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUserData() async {
+    setState(() => _isLoading = true);
     try {
+      final profile = await _profileService.getCurrentUserProfile();
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final userData = await _authService.getUserData(user.uid);
 
-        if (mounted) {
-          setState(() {
-            userName = userData?['name'] ?? user.displayName ?? 'Usuario';
-            userEmail = user.email ?? '';
-            photoURL = userData?['photoURL'] ?? user.photoURL;
-            _isLoading = false;
-          });
-        }
+      if (mounted && profile != null) {
+        setState(() {
+          firstName = profile.firstName;
+          lastName = profile.lastName;
+          userEmail = profile.email;
+          age = profile.age;
+          bio = profile.bio;
+          goals = profile.goals;
+          photoURL = profile.photoUrl;
+        });
+      } else if (mounted && user != null) {
+        setState(() {
+          firstName = user.displayName ?? 'Usuario';
+          userEmail = user.email ?? '';
+          photoURL = user.photoURL;
+        });
+      }
+
+      // Cargar estadísticas de hábitos
+      await _loadHabitStats();
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -48,6 +80,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _loadHabitStats() async {
+    try {
+      final habitService = Provider.of<HabitService>(context, listen: false);
+
+      // Asegurar que los hábitos estén cargados
+      if (habitService.habits.isEmpty) {
+        await habitService.initializeHabits();
+      }
+
+      // Calcular total de hábitos
+      totalHabits = habitService.habits.length;
+
+      // Calcular progreso general
+      overallProgress = habitService.overallProgress;
+
+      // Calcular racha actual desde el historial
+      currentStreak = await habitService.getCurrentStreak();
+    } catch (e) {
+      // En caso de error, usar valores por defecto
+      totalHabits = 0;
+      overallProgress = 0.0;
+      currentStreak = 0;
     }
   }
 
@@ -109,8 +166,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             : null,
                         child: photoURL == null
                             ? Text(
-                                userName.isNotEmpty
-                                    ? userName[0].toUpperCase()
+                                fullName.isNotEmpty
+                                    ? fullName[0].toUpperCase()
                                     : 'U',
                                 style: const TextStyle(
                                   fontSize: 32,
@@ -124,13 +181,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    userName,
+                    fullName,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
+                  if (age > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '$age años',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDark
+                              ? Colors.white60
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   Text(
                     userEmail,
@@ -143,13 +213,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Consumer<ThemeProvider>(
                     builder: (context, themeProvider, child) {
                       return ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: () async {
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => const EditProfileScreen(),
                             ),
                           );
+                          // Recargar datos al volver
+                          _loadUserData();
                         },
                         icon: const Icon(Icons.edit),
                         label: const Text('Editar perfil'),
@@ -173,7 +245,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 24),
 
-            // Estadísticas (placeholder por ahora)
+            // Biografía
+            if (bio.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Consumer<ThemeProvider>(
+                          builder: (context, themeProvider, child) {
+                            return Icon(
+                              Icons.info_outline,
+                              color: themeProvider.primaryColor,
+                              size: 20,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Biografía',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      bio,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: isDark
+                            ? Colors.white70
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            if (bio.isNotEmpty) const SizedBox(height: 16),
+
+            // Objetivos y metas
+            if (goals.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Consumer<ThemeProvider>(
+                          builder: (context, themeProvider, child) {
+                            return Icon(
+                              Icons.flag_outlined,
+                              color: themeProvider.primaryColor,
+                              size: 20,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Objetivos y metas',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      goals,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: isDark
+                            ? Colors.white70
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            if (goals.isNotEmpty) const SizedBox(height: 16),
+
+            // Estadísticas
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -202,13 +392,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatCard('Hábitos', '5', Icons.task_alt),
+                      _buildStatCard(
+                        'Hábitos',
+                        totalHabits.toString(),
+                        Icons.task_alt,
+                      ),
                       _buildStatCard(
                         'Racha',
-                        '7 días',
+                        currentStreak > 0
+                            ? '$currentStreak día${currentStreak > 1 ? 's' : ''}'
+                            : '0 días',
                         Icons.local_fire_department,
                       ),
-                      _buildStatCard('Progreso', '78%', Icons.trending_up),
+                      _buildStatCard(
+                        'Progreso',
+                        '${(overallProgress * 100).toStringAsFixed(0)}%',
+                        Icons.trending_up,
+                      ),
                     ],
                   ),
                 ],

@@ -92,15 +92,16 @@ class UserProfileService {
     if (user == null) throw Exception('Usuario no autenticado');
 
     try {
-      // Actualizar en Firestore
+      // Actualizar en Firestore con merge para no sobrescribir otros campos
       await _firestore
           .collection('users')
           .doc(user.uid)
           .set(profile.toMap(), SetOptions(merge: true));
 
       // Actualizar displayName en Firebase Auth si cambió
-      if (profile.fullName.isNotEmpty && profile.fullName != user.displayName) {
-        await user.updateDisplayName(profile.fullName);
+      final newDisplayName = profile.fullName;
+      if (newDisplayName.isNotEmpty && newDisplayName != user.displayName) {
+        await user.updateDisplayName(newDisplayName);
       }
 
       // Actualizar photoURL en Firebase Auth si cambió
@@ -108,7 +109,13 @@ class UserProfileService {
           profile.photoUrl!.isNotEmpty &&
           profile.photoUrl != user.photoURL) {
         await user.updatePhotoURL(profile.photoUrl);
+      } else if (profile.photoUrl == null && user.photoURL != null) {
+        // Si se eliminó la foto en el perfil, también eliminarla de Auth
+        await user.updatePhotoURL(null);
       }
+
+      // Recargar el usuario para obtener los cambios
+      await user.reload();
     } catch (e) {
       throw Exception('Error al actualizar el perfil: $e');
     }
