@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
@@ -30,6 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int totalHabits = 0;
   int currentStreak = 0;
   double overallProgress = 0.0;
+  int completedHabitsToday = 0;
 
   String get fullName {
     final name = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
@@ -40,6 +42,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recargar estadísticas cuando se regrese a la pantalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadHabitStats();
+      }
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -88,23 +101,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final habitService = Provider.of<HabitService>(context, listen: false);
 
       // Asegurar que los hábitos estén cargados
-      if (habitService.habits.isEmpty) {
-        await habitService.initializeHabits();
-      }
+      await habitService.initializeHabits();
 
-      // Calcular total de hábitos
-      totalHabits = habitService.habits.length;
+      // Calcular total de templates de hábitos activos
+      totalHabits = await habitService.getTotalActiveTemplates();
 
-      // Calcular progreso general
-      overallProgress = habitService.overallProgress;
+      // Calcular progreso general actual
+      overallProgress = await habitService.getCurrentOverallProgress();
 
-      // Calcular racha actual desde el historial
-      currentStreak = await habitService.getCurrentStreak();
+      // Calcular racha actual usando la nueva estructura
+      currentStreak = await habitService.getStreakFromDailyProgress();
+      
+      // Calcular hábitos completados hoy
+      completedHabitsToday = await _getCompletedHabitsToday(habitService);
     } catch (e) {
+      debugPrint('Error loading habit stats: $e');
       // En caso de error, usar valores por defecto
       totalHabits = 0;
       overallProgress = 0.0;
       currentStreak = 0;
+      completedHabitsToday = 0;
+    }
+  }
+  
+  Future<int> _getCompletedHabitsToday(HabitService habitService) async {
+    try {
+      // Obtener hábitos del día actual desde el servicio
+      final dailyHabits = habitService.dailyHabits;
+      
+      if (dailyHabits.isEmpty) {
+        return 0;
+      }
+      
+      // Contar hábitos completados (progreso >= 1.0)
+      return dailyHabits.where((habit) => habit.value >= 1.0).length;
+    } catch (e) {
+      debugPrint('Error getting completed habits today: $e');
+      return 0;
     }
   }
 
@@ -390,24 +423,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 16),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatCard(
-                        'Hábitos',
-                        totalHabits.toString(),
-                        Icons.task_alt,
+                      Expanded(
+                        child: _buildStatCard(
+                          'Hábitos',
+                          totalHabits.toString(),
+                          Icons.task_alt,
+                        ),
                       ),
-                      _buildStatCard(
-                        'Racha',
-                        currentStreak > 0
-                            ? '$currentStreak día${currentStreak > 1 ? 's' : ''}'
-                            : '0 días',
-                        Icons.local_fire_department,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Completados',
+                          '$completedHabitsToday/$totalHabits',
+                          Icons.check_circle,
+                        ),
                       ),
-                      _buildStatCard(
-                        'Progreso',
-                        '${(overallProgress * 100).toStringAsFixed(0)}%',
-                        Icons.trending_up,
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Racha',
+                          currentStreak > 0
+                              ? '$currentStreak día${currentStreak > 1 ? 's' : ''}'
+                              : '0 días',
+                          Icons.local_fire_department,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Progreso',
+                          '${(overallProgress * 100).toStringAsFixed(0)}%',
+                          Icons.trending_up,
+                        ),
                       ),
                     ],
                   ),
