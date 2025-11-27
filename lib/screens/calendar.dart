@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
 import '../providers/theme_provider.dart';
+import '../services/habit_service.dart';
 
 class CalendarScreen extends StatefulWidget {
   final DateTime selectedDate;
@@ -20,12 +21,99 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   late ScrollController _scrollController;
   late DateTime _selectedDate;
+  
+  // Cache para el progreso de días cargado en batch
+  final Map<String, double> _dayProgressCache = {};
+  DateTime? _oldestHabitDate;
+  bool _isLoadingProgress = true;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.selectedDate;
     _scrollController = ScrollController();
+    
+    // Ejecutar la inicialización después de que el widget esté construido
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initializeDateRange();
+      }
+    });
+  }
+
+  void _initializeDateRange() async {
+    if (!mounted) return;
+    
+    final habitService = Provider.of<HabitService>(context, listen: false);
+    _oldestHabitDate = habitService.getOldestHabitDate();
+    debugPrint('Oldest habit date: $_oldestHabitDate');
+    
+    // Cargar TODOS los progresos en una sola consulta
+    await _loadAllProgressInBatch();
+    
+    // Marcar carga como completada y actualizar UI
+    if (mounted) {
+      setState(() {
+        _isLoadingProgress = false;
+      });
+    }
+  }
+  
+  /// Carga TODOS los progresos de una sola vez usando daily_progress
+  Future<void> _loadAllProgressInBatch() async {
+    if (!mounted || _oldestHabitDate == null) return;
+    
+    try {
+      final habitService = Provider.of<HabitService>(context, listen: false);
+      final now = DateTime.now();
+      debugPrint('🔄 Loading ALL daily progress from ${_oldestHabitDate!.toIso8601String().split('T')[0]} to ${now.toIso8601String().split('T')[0]}');
+      
+      // UNA SOLA consulta para obtener TODOS los progresos
+      final progressMap = await habitService.getDailyProgressRange(_oldestHabitDate!, now);
+      
+      // Solo actualizar si el widget sigue montado
+      if (!mounted) return;
+      
+      // Llenar el caché con los datos obtenidos
+      _dayProgressCache.clear();
+      _dayProgressCache.addAll(progressMap);
+      
+      debugPrint('✅ Loaded ${progressMap.length} progress records in ONE batch query');
+      
+      // Debugear algunos datos cargados (limitar para evitar spam)
+      int count = 0;
+      progressMap.forEach((date, progress) {
+        if (count < 5) { // Solo mostrar los primeros 5
+          debugPrint('📊 $date: ${(progress * 100).toStringAsFixed(1)}%');
+          count++;
+        }
+      });
+      
+      if (progressMap.length > 5) {
+        debugPrint('📊 ... and ${progressMap.length - 5} more records');
+      }
+      
+    } catch (e) {
+      debugPrint('❌ Error loading progress in batch: $e');
+    }
+  }
+  
+  // Calcular el número de meses a mostrar basado en el rango real
+  int _getMonthCount() {
+    if (_oldestHabitDate == null) return 12; // Default: 1 año
+    
+    final now = DateTime.now();
+    final oldestMonth = DateTime(_oldestHabitDate!.year, _oldestHabitDate!.month);
+    final currentMonth = DateTime(now.year, now.month);
+    
+    // Calcular diferencia en meses
+    int monthDiff = ((currentMonth.year - oldestMonth.year) * 12) + (currentMonth.month - oldestMonth.month);
+    
+    // Agregar 1 porque incluimos el mes actual
+    monthDiff += 1;
+    
+    // Limitar a un máximo razonable (ej: 36 meses = 3 años)
+    return monthDiff.clamp(1, 36);
   }
 
   @override
@@ -34,12 +122,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.dispose();
   }
 
-  // Simular progreso por día (en una app real vendría de una base de datos)
+  // Obtener progreso DIRECTAMENTE del caché (sin consultas individuales)
   double _getDayProgress(DateTime date) {
-    // Para demo, usar un cálculo basado en el día del mes
-    final dayOfMonth = date.day;
-    final progress = (dayOfMonth % 10) / 10.0; // 0.0 a 0.9
-    return progress.clamp(0.0, 1.0);
+    final dateKey = '${date.year}-${date.month}-${date.day}';
+    
+    // Si la fecha está fuera del rango válido, return 0
+    if (_oldestHabitDate != null && date.isBefore(_oldestHabitDate!)) {
+      return 0.0;
+    }
+    
+    if (date.isAfter(DateTime.now())) {
+      return 0.0;
+    }
+    
+    // USAR SOLAMENTE LOS DATOS DEL CACHÉ (ya cargados en batch)
+    return _dayProgressCache[dateKey] ?? 0.0;
   }
 
   Color _getProgressColor(double progress) {
@@ -51,9 +148,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   DateTime _getMonthFromIndex(int index) {
-    final now = DateTime.now();
-    // index 0 = mes actual, index 1 = mes anterior, etc.
-    final targetMonth = DateTime(now.year, now.month - index, 1);
+    if (_oldestHabitDate == null) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month - index, 1);
+    }
+    
+    // Calcular desde el mes más antiguo hacia adelante
+    final oldestMonth = DateTime(_oldestHabitDate!.year, _oldestHabitDate!.month, 1);
+    final targetMonth = DateTime(oldestMonth.year, oldestMonth.month + index, 1);
     return targetMonth;
   }
 
@@ -102,8 +204,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
+    return Consumer2<ThemeProvider, HabitService>(
+      builder: (context, themeProvider, habitService, child) {
+        // Esperar a que los templates estén cargados Y el progreso esté cargado
+        if (habitService.habitTemplates.isEmpty || _isLoadingProgress) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                'Calendario',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+            body: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
         return Scaffold(
           appBar: AppBar(
             title: Text(
@@ -175,7 +301,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 padding: const EdgeInsets.only(top: 120),
                 child: ListView.builder(
                   controller: _scrollController,
-                  itemCount: 24, // 2 años hacia atrás
+                  itemCount: _getMonthCount(), // Rango dinámico basado en hábitos
                   itemBuilder: (context, index) {
                     final currentMonth = _getMonthFromIndex(index);
                     final calendarDays = _getCalendarDays(currentMonth);
@@ -225,7 +351,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 return Container();
                               }
 
-                              final progress = _getDayProgress(date);
                               final isSelected =
                                   date.year == _selectedDate.year &&
                                   date.month == _selectedDate.month &&
@@ -235,6 +360,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   date.month == DateTime.now().month &&
                                   date.day == DateTime.now().day;
 
+                              // Obtener progreso directamente del caché (ya cargado en batch)
+                              final progress = _getDayProgress(date);
+                              
                               return GestureDetector(
                                 onTap: () {
                                   setState(() {
@@ -320,9 +448,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       ),
                                     ],
                                   ),
-                                ),
-                              );
-                            },
+                                ), // Cierre del Container
+                              ); // Cierre del GestureDetector
+                              }, // Cierre del itemBuilder
                           ),
                         ],
                       ),
