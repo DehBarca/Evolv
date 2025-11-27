@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/habit_template.dart';
 import '../models/habit.dart';
+import '../models/daily_progress.dart';
 
 class HabitService extends ChangeNotifier {
   static final HabitService _instance = HabitService._internal();
@@ -127,6 +128,30 @@ class HabitService extends ChangeNotifier {
       // Cargar templates del usuario
       await _loadHabitTemplates();
       
+      // Ejecutar migración a daily_progress una sola vez (solo si hay templates)
+      if (_habitTemplates.isNotEmpty) {
+        // Verificar si ya se ejecutó la migración
+        final migrationDoc = await _firestore
+            .collection('user_migrations')
+            .doc('${_userId}_daily_progress')
+            .get();
+        
+        if (!migrationDoc.exists) {
+          await migrateToDailyProgress();
+          
+          // Marcar migración como completada
+          await _firestore
+              .collection('user_migrations')
+              .doc('${_userId}_daily_progress')
+              .set({
+                'completed': true,
+                'completedAt': FieldValue.serverTimestamp(),
+              });
+          
+          debugPrint('✅ Daily progress migration completed for user');
+        }
+      }
+      
       // Cargar hábitos del día seleccionado
       await _loadDailyHabits(_selectedDate);
       
@@ -236,26 +261,57 @@ class HabitService extends ChangeNotifier {
   // Obtener fecha del hábito más antiguo
   Future<void> _getOldestHabitDate() async {
     try {
-      // Por ahora usar fecha actual hasta crear el índice en Firebase
-      // TODO: Crear índice compuesto en Firebase Console para idUser + date
-      _oldestHabitDate = DateTime.now().subtract(const Duration(days: 30));
+      debugPrint('🔍 Finding oldest habit date...');
       
-      // Código para cuando se cree el índice:
-      // final snapshot = await _firestore
-      //     .collection('habits')
-      //     .where('idUser', isEqualTo: _userId)
-      //     .orderBy('date', descending: false)
-      //     .limit(1)
-      //     .get();
-      //
-      // if (snapshot.docs.isNotEmpty) {
-      //   final oldestTimestamp = snapshot.docs.first.data()['date'] as Timestamp;
-      //   _oldestHabitDate = oldestTimestamp.toDate();
-      // } else {
-      //   _oldestHabitDate = DateTime.now();
-      // }
+      // Obtener todos los hábitos del usuario para encontrar la fecha más antigua
+      final snapshot = await _firestore
+          .collection('habits')
+          .where('idUser', isEqualTo: _userId)
+          .get();
+      
+      if (snapshot.docs.isNotEmpty) {
+        DateTime? oldestDate;
+        debugPrint('🔍 Processing ${snapshot.docs.length} habits to find oldest date...');
+        
+        for (final doc in snapshot.docs) {
+          try {
+            final data = doc.data();
+            final timestamp = data['date'] as Timestamp;
+            final habitDate = timestamp.toDate();
+            final normalizedDate = DateTime(habitDate.year, habitDate.month, habitDate.day);
+            
+            debugPrint('📅 Habit ${doc.id}: ${normalizedDate.toIso8601String().split('T')[0]} (original: ${habitDate.toIso8601String()})');
+            
+            if (oldestDate == null) {
+              oldestDate = normalizedDate;
+              debugPrint('🆕 First date set: ${oldestDate.toIso8601String().split('T')[0]}');
+            } else if (normalizedDate.isBefore(oldestDate)) {
+              debugPrint('📍 Comparing: ${normalizedDate.toIso8601String().split('T')[0]} is before ${oldestDate.toIso8601String().split('T')[0]}? ${normalizedDate.isBefore(oldestDate)}');
+              oldestDate = normalizedDate;
+              debugPrint('✅ New oldest date found: ${oldestDate.toIso8601String().split('T')[0]}');
+            } else {
+              debugPrint('📍 ${normalizedDate.toIso8601String().split('T')[0]} is NOT before ${oldestDate.toIso8601String().split('T')[0]}');
+            }
+          } catch (e) {
+            debugPrint('❌ Error parsing habit date for ${doc.id}: $e');
+          }
+        }
+        
+        if (oldestDate != null) {
+          _oldestHabitDate = oldestDate;
+          debugPrint('🎯 FINAL oldest habit date: ${_oldestHabitDate!.toIso8601String().split('T')[0]}');
+        } else {
+          _oldestHabitDate = DateTime.now().subtract(const Duration(days: 30));
+          debugPrint('⚠️ No valid dates found, using default: ${_oldestHabitDate!.toIso8601String().split('T')[0]}');
+        }
+      } else {
+        // No hay hábitos, usar fecha por defecto
+        _oldestHabitDate = DateTime.now().subtract(const Duration(days: 30));
+        debugPrint('ℹ️ No habits found, using default oldest date: ${_oldestHabitDate!.toIso8601String().split('T')[0]}');
+      }
+      
     } catch (e) {
-      debugPrint('Error getting oldest habit date: $e');
+      debugPrint('❌ Error getting oldest habit date: $e');
       _oldestHabitDate = DateTime.now().subtract(const Duration(days: 30));
     }
   }
@@ -370,6 +426,11 @@ class HabitService extends ChangeNotifier {
 
   // Cambiar fecha seleccionada
   Future<void> changeSelectedDate(DateTime newDate) async {
+    // Actualizar daily_progress del día anterior antes de cambiar
+    if (_dailyHabits.isNotEmpty) {
+      await _updateDailyProgress(_selectedDate);
+    }
+    
     _selectedDate = newDate;
     
     // Cargar hábitos existentes del día
@@ -414,6 +475,10 @@ class HabitService extends ChangeNotifier {
         final createdHabit = newHabit.copyWith(id: docRef.id);
         _dailyHabits.add(createdHabit);
         _generateLegacyHabitsData();
+        
+        // Actualizar daily progress cuando se crea un nuevo hábito
+        await _updateDailyProgress(date);
+        
         notifyListeners();
       } catch (e) {
         debugPrint('Error creating daily habit: $e');
@@ -567,6 +632,10 @@ class HabitService extends ChangeNotifier {
           updatedAt: DateTime.now(),
         );
         _generateLegacyHabitsData();
+        
+        // Actualizar daily progress
+        await _updateDailyProgress(_selectedDate);
+        
         notifyListeners();
         return;
       }
@@ -595,6 +664,10 @@ class HabitService extends ChangeNotifier {
             updatedAt: DateTime.now(),
           );
           _generateLegacyHabitsData();
+          
+          // Actualizar daily progress
+          await _updateDailyProgress(_selectedDate);
+          
           notifyListeners();
         }
       }
@@ -796,14 +869,19 @@ class HabitService extends ChangeNotifier {
   
   /// Obtiene la fecha del hábito más antiguo para optimizar el rango del calendario
   DateTime getOldestHabitDate() {
-    if (_habitTemplates.isEmpty) {
-      return DateTime.now(); // Si no hay hábitos, empezar desde hoy
+    // Si ya se calculó la fecha más antigua, usarla
+    if (_oldestHabitDate != null) {
+      return _oldestHabitDate!;
     }
     
-    // Encontrar el template más antiguo (que no esté eliminado)
+    // Fallback: usar fecha de los templates como estimación
+    if (_habitTemplates.isEmpty) {
+      return DateTime.now().subtract(const Duration(days: 30));
+    }
+    
     final activeTemplates = _habitTemplates.where((t) => !t.deleted);
     if (activeTemplates.isEmpty) {
-      return DateTime.now();
+      return DateTime.now().subtract(const Duration(days: 30));
     }
     
     final oldestTemplate = activeTemplates.reduce((a, b) => 
@@ -855,6 +933,266 @@ class HabitService extends ChangeNotifier {
     } catch (e) {
       debugPrint('❌ Error loading habits for date $date: $e');
       return [];
+    }
+  }
+
+  // ===== MÉTODOS PARA DAILY PROGRESS =====
+  
+  /// Actualiza el progreso diario en la colección daily_progress
+  Future<void> _updateDailyProgress(DateTime date) async {
+    if (_userId.isEmpty) return;
+    
+    try {
+      final normalizedDate = DateTime(date.year, date.month, date.day);
+      
+      // Calcular progreso actual del día
+      double totalProgress = 0.0;
+      int totalHabits = 0;
+      int completedHabits = 0;
+      
+      for (final habit in _dailyHabits) {
+        // Buscar template correspondiente
+        final template = _habitTemplates.firstWhere(
+          (t) => t.id == habit.idTemplate && !t.deleted,
+          orElse: () => throw 'Template not found'
+        );
+        
+        final progress = template.objetivo > 0 
+            ? (habit.value / template.objetivo).clamp(0.0, 1.0) 
+            : 0.0;
+            
+        totalProgress += progress;
+        totalHabits++;
+        
+        if (progress >= 1.0) {
+          completedHabits++;
+        }
+      }
+      
+      final overallProgress = totalHabits > 0 ? totalProgress / totalHabits : 0.0;
+      
+      // Crear o actualizar documento de daily_progress
+      final progressId = '${_userId}_${normalizedDate.toIso8601String().split('T')[0]}';
+      final now = DateTime.now();
+      
+      final dailyProgress = DailyProgress(
+        id: progressId,
+        idUser: _userId,
+        date: normalizedDate,
+        overallProgress: overallProgress,
+        totalHabits: totalHabits,
+        completedHabits: completedHabits,
+        createdAt: now,
+        updatedAt: now,
+      );
+      
+      await _firestore
+          .collection('daily_progress')
+          .doc(progressId)
+          .set(dailyProgress.toMap(), SetOptions(merge: true));
+          
+      debugPrint('✅ Updated daily progress: ${(overallProgress * 100).toStringAsFixed(1)}% (${completedHabits}/${totalHabits} habits)');
+      
+    } catch (e) {
+      debugPrint('❌ Error updating daily progress: $e');
+    }
+  }
+  
+  /// Obtiene progresos diarios para un rango de fechas (para calendario)
+  Future<Map<String, double>> getDailyProgressRange(DateTime startDate, DateTime endDate) async {
+    if (_userId.isEmpty) return {};
+    
+    try {
+      final start = DateTime(startDate.year, startDate.month, startDate.day);
+      final end = DateTime(endDate.year, endDate.month, endDate.day);
+      
+      debugPrint('🔍 Loading daily progress from ${start.toIso8601String().split('T')[0]} to ${end.toIso8601String().split('T')[0]}');
+      
+      // Usar consulta simple sin índice compuesto (solo por idUser)
+      final querySnapshot = await _firestore
+          .collection('daily_progress')
+          .where('idUser', isEqualTo: _userId)
+          .get();
+      
+      final progressMap = <String, double>{};
+      
+      for (final doc in querySnapshot.docs) {
+        try {
+          final progress = DailyProgress.fromMap({...doc.data(), 'id': doc.id});
+          
+          // Filtrar por rango de fechas en código (no en query)
+          if (progress.date.isAfter(end) || progress.date.isBefore(start)) {
+            continue; // Skip fechas fuera del rango
+          }
+          
+          final dateKey = '${progress.date.year}-${progress.date.month}-${progress.date.day}';
+          progressMap[dateKey] = progress.overallProgress;
+          
+          debugPrint('📊 ${dateKey}: ${(progress.overallProgress * 100).toStringAsFixed(1)}%');
+        } catch (e) {
+          debugPrint('❌ Error parsing daily progress document ${doc.id}: $e');
+        }
+      }
+      
+      debugPrint('✅ Loaded ${progressMap.length} daily progress records (filtered from ${querySnapshot.docs.length} total)');
+      return progressMap;
+      
+    } catch (e) {
+      debugPrint('❌ Error loading daily progress range: $e');
+      
+      // Fallback: usar método anterior si falla daily_progress
+      debugPrint('🔄 Fallback: using old method to calculate progress...');
+      final progressMap = <String, double>{};
+      
+      // Calcular progreso día por día como fallback
+      DateTime currentDate = DateTime(startDate.year, startDate.month, startDate.day);
+      final endDate_norm = DateTime(endDate.year, endDate.month, endDate.day);
+      
+      while (currentDate.isBefore(endDate_norm) || currentDate.isAtSameMomentAs(endDate_norm)) {
+        final progress = await getDayProgress(currentDate);
+        final dateKey = '${currentDate.year}-${currentDate.month}-${currentDate.day}';
+        progressMap[dateKey] = progress;
+        currentDate = currentDate.add(const Duration(days: 1));
+        
+        // Limitar a máximo 90 días para evitar timeouts
+        if (progressMap.length > 90) break;
+      }
+      
+      debugPrint('✅ Fallback completed with ${progressMap.length} records');
+      return progressMap;
+    }
+  }
+  
+  /// Método optimizado para el calendario que usa daily_progress
+  Future<double> getDayProgressOptimized(DateTime date) async {
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    final selectedNormalized = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    
+    // Si es el día actualmente seleccionado, usar los datos actuales
+    if (normalizedDate.isAtSameMomentAs(selectedNormalized) && _habits.isNotEmpty) {
+      final totalProgress = _habits.fold(0.0, (sum, habit) => sum + (habit['progress'] as double));
+      return totalProgress / _habits.length;
+    }
+    
+    // Para otros días, consultar daily_progress
+    try {
+      final progressId = '${_userId}_${normalizedDate.toIso8601String().split('T')[0]}';
+      final doc = await _firestore
+          .collection('daily_progress')
+          .doc(progressId)
+          .get();
+      
+      if (doc.exists) {
+        final progress = DailyProgress.fromMap({...doc.data()!, 'id': doc.id});
+        return progress.overallProgress;
+      }
+      
+      // Si no existe daily_progress, usar la lógica anterior como fallback
+      return await getDayProgress(date);
+      
+    } catch (e) {
+      debugPrint('❌ Error getting optimized day progress: $e');
+      return 0.0;
+    }
+  }
+  
+  /// Migración única: Crear daily_progress para datos históricos existentes  
+  /// Solo ejecutar una vez para migrar datos antiguos
+  Future<void> migrateToDailyProgress() async {
+    if (_userId.isEmpty) return;
+    
+    try {
+      debugPrint('🔄 Starting migration to daily_progress...');
+      
+      // Obtener todas las fechas únicas de hábitos existentes
+      final snapshot = await _firestore
+          .collection('habits')
+          .where('idUser', isEqualTo: _userId)
+          .get();
+      
+      final Set<DateTime> uniqueDates = {};
+      for (final doc in snapshot.docs) {
+        try {
+          final habit = Habit.fromMap({...doc.data(), 'id': doc.id});
+          final normalizedDate = DateTime(habit.date.year, habit.date.month, habit.date.day);
+          uniqueDates.add(normalizedDate);
+        } catch (e) {
+          debugPrint('❌ Error parsing habit during migration: $e');
+        }
+      }
+      
+      debugPrint('📅 Found ${uniqueDates.length} unique dates to migrate');
+      
+      // Crear daily_progress para cada fecha
+      for (final date in uniqueDates) {
+        // Verificar si ya existe daily_progress para esta fecha
+        final progressId = '${_userId}_${date.toIso8601String().split('T')[0]}';
+        final existingDoc = await _firestore
+            .collection('daily_progress')
+            .doc(progressId)
+            .get();
+        
+        if (!existingDoc.exists) {
+          // Cargar hábitos de esa fecha específica
+          final dayHabits = await _loadHabitsForDate(date);
+          
+          if (dayHabits.isNotEmpty) {
+            double totalProgress = 0.0;
+            int totalHabits = 0;
+            int completedHabits = 0;
+            
+            for (final habit in dayHabits) {
+              try {
+                final template = _habitTemplates.firstWhere(
+                  (t) => t.id == habit.idTemplate && !t.deleted,
+                );
+                
+                final progress = template.objetivo > 0 
+                    ? (habit.value / template.objetivo).clamp(0.0, 1.0) 
+                    : 0.0;
+                    
+                totalProgress += progress;
+                totalHabits++;
+                
+                if (progress >= 1.0) {
+                  completedHabits++;
+                }
+              } catch (e) {
+                // Template no encontrado o eliminado, skip
+                continue;
+              }
+            }
+            
+            if (totalHabits > 0) {
+              final overallProgress = totalProgress / totalHabits;
+              final now = DateTime.now();
+              
+              final dailyProgress = DailyProgress(
+                id: progressId,
+                idUser: _userId,
+                date: date,
+                overallProgress: overallProgress,
+                totalHabits: totalHabits,
+                completedHabits: completedHabits,
+                createdAt: now,
+                updatedAt: now,
+              );
+              
+              await _firestore
+                  .collection('daily_progress')
+                  .doc(progressId)
+                  .set(dailyProgress.toMap());
+              
+              debugPrint('✅ Migrated ${date.toIso8601String().split('T')[0]}: ${(overallProgress * 100).toStringAsFixed(1)}%');
+            }
+          }
+        }
+      }
+      
+      debugPrint('✅ Migration to daily_progress completed');
+      
+    } catch (e) {
+      debugPrint('❌ Error during migration: $e');
     }
   }
 }

@@ -22,23 +22,80 @@ class _CalendarScreenState extends State<CalendarScreen> {
   late ScrollController _scrollController;
   late DateTime _selectedDate;
   
-  // Cache para el progreso de días para evitar múltiples llamadas
+  // Cache para el progreso de días cargado en batch
   final Map<String, double> _dayProgressCache = {};
   DateTime? _oldestHabitDate;
+  bool _isLoadingProgress = true;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.selectedDate;
     _scrollController = ScrollController();
-    _initializeDateRange();
+    
+    // Ejecutar la inicialización después de que el widget esté construido
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initializeDateRange();
+      }
+    });
   }
 
   void _initializeDateRange() async {
+    if (!mounted) return;
+    
     final habitService = Provider.of<HabitService>(context, listen: false);
     _oldestHabitDate = habitService.getOldestHabitDate();
     debugPrint('Oldest habit date: $_oldestHabitDate');
-    if (mounted) setState(() {});
+    
+    // Cargar TODOS los progresos en una sola consulta
+    await _loadAllProgressInBatch();
+    
+    // Marcar carga como completada y actualizar UI
+    if (mounted) {
+      setState(() {
+        _isLoadingProgress = false;
+      });
+    }
+  }
+  
+  /// Carga TODOS los progresos de una sola vez usando daily_progress
+  Future<void> _loadAllProgressInBatch() async {
+    if (!mounted || _oldestHabitDate == null) return;
+    
+    try {
+      final habitService = Provider.of<HabitService>(context, listen: false);
+      final now = DateTime.now();
+      debugPrint('🔄 Loading ALL daily progress from ${_oldestHabitDate!.toIso8601String().split('T')[0]} to ${now.toIso8601String().split('T')[0]}');
+      
+      // UNA SOLA consulta para obtener TODOS los progresos
+      final progressMap = await habitService.getDailyProgressRange(_oldestHabitDate!, now);
+      
+      // Solo actualizar si el widget sigue montado
+      if (!mounted) return;
+      
+      // Llenar el caché con los datos obtenidos
+      _dayProgressCache.clear();
+      _dayProgressCache.addAll(progressMap);
+      
+      debugPrint('✅ Loaded ${progressMap.length} progress records in ONE batch query');
+      
+      // Debugear algunos datos cargados (limitar para evitar spam)
+      int count = 0;
+      progressMap.forEach((date, progress) {
+        if (count < 5) { // Solo mostrar los primeros 5
+          debugPrint('📊 $date: ${(progress * 100).toStringAsFixed(1)}%');
+          count++;
+        }
+      });
+      
+      if (progressMap.length > 5) {
+        debugPrint('📊 ... and ${progressMap.length - 5} more records');
+      }
+      
+    } catch (e) {
+      debugPrint('❌ Error loading progress in batch: $e');
+    }
   }
   
   // Calcular el número de meses a mostrar basado en el rango real
@@ -65,44 +122,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.dispose();
   }
 
-  // Obtener progreso real de un día específico con caché persistente
-  Future<double> _getDayProgress(DateTime date) async {
+  // Obtener progreso DIRECTAMENTE del caché (sin consultas individuales)
+  double _getDayProgress(DateTime date) {
     final dateKey = '${date.year}-${date.month}-${date.day}';
-    
-    // Verificar si ya está en caché
-    if (_dayProgressCache.containsKey(dateKey)) {
-      return _dayProgressCache[dateKey]!;
-    }
     
     // Si la fecha está fuera del rango válido, return 0
     if (_oldestHabitDate != null && date.isBefore(_oldestHabitDate!)) {
-      _dayProgressCache[dateKey] = 0.0;
       return 0.0;
     }
     
     if (date.isAfter(DateTime.now())) {
-      _dayProgressCache[dateKey] = 0.0;
       return 0.0;
     }
     
-    try {
-      final habitService = Provider.of<HabitService>(context, listen: false);
-      final progress = await habitService.getDayProgress(date);
-      
-      // Guardar en caché permanentemente (no se elimina al cambiar de día)
-      _dayProgressCache[dateKey] = progress;
-      return progress;
-    } catch (e) {
-      debugPrint('Error loading progress for $dateKey: $e');
-      _dayProgressCache[dateKey] = 0.0;
-      return 0.0;
-    }
-  }
-
-  // Método para limpiar el caché si es necesario (ej: cuando se actualiza un hábito)
-  void _clearProgressCache() {
-    _dayProgressCache.clear();
-    if (mounted) setState(() {});
+    // USAR SOLAMENTE LOS DATOS DEL CACHÉ (ya cargados en batch)
+    return _dayProgressCache[dateKey] ?? 0.0;
   }
 
   Color _getProgressColor(double progress) {
@@ -172,8 +206,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Consumer2<ThemeProvider, HabitService>(
       builder: (context, themeProvider, habitService, child) {
-        // Esperar a que los templates estén cargados antes de mostrar el calendario
-        if (habitService.habitTemplates.isEmpty) {
+        // Esperar a que los templates estén cargados Y el progreso esté cargado
+        if (habitService.habitTemplates.isEmpty || _isLoadingProgress) {
           return Scaffold(
             appBar: AppBar(
               title: Text(
@@ -326,18 +360,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   date.month == DateTime.now().month &&
                                   date.day == DateTime.now().day;
 
-                              return FutureBuilder<double>(
-                                future: _getDayProgress(date),
-                                builder: (context, snapshot) {
-                                  final progress = snapshot.data ?? 0.0;
-                                  
-                                  return GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedDate = date;
-                                      });
-                                      Navigator.of(context).pop(date);
-                                    },
+                              // Obtener progreso directamente del caché (ya cargado en batch)
+                              final progress = _getDayProgress(date);
+                              
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedDate = date;
+                                  });
+                                  Navigator.of(context).pop(date);
+                                },
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: isSelected
@@ -418,7 +450,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   ),
                                 ), // Cierre del Container
                               ); // Cierre del GestureDetector
-                                }); // Cierre del FutureBuilder builder
                               }, // Cierre del itemBuilder
                           ),
                         ],
