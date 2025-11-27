@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
 import '../providers/theme_provider.dart';
+import '../services/habit_service.dart';
 
 class CalendarScreen extends StatefulWidget {
   final DateTime selectedDate;
@@ -20,12 +21,42 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   late ScrollController _scrollController;
   late DateTime _selectedDate;
+  
+  // Cache para el progreso de días para evitar múltiples llamadas
+  final Map<String, double> _dayProgressCache = {};
+  DateTime? _oldestHabitDate;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.selectedDate;
     _scrollController = ScrollController();
+    _initializeDateRange();
+  }
+
+  void _initializeDateRange() async {
+    final habitService = Provider.of<HabitService>(context, listen: false);
+    _oldestHabitDate = habitService.getOldestHabitDate();
+    debugPrint('Oldest habit date: $_oldestHabitDate');
+    if (mounted) setState(() {});
+  }
+  
+  // Calcular el número de meses a mostrar basado en el rango real
+  int _getMonthCount() {
+    if (_oldestHabitDate == null) return 12; // Default: 1 año
+    
+    final now = DateTime.now();
+    final oldestMonth = DateTime(_oldestHabitDate!.year, _oldestHabitDate!.month);
+    final currentMonth = DateTime(now.year, now.month);
+    
+    // Calcular diferencia en meses
+    int monthDiff = ((currentMonth.year - oldestMonth.year) * 12) + (currentMonth.month - oldestMonth.month);
+    
+    // Agregar 1 porque incluimos el mes actual
+    monthDiff += 1;
+    
+    // Limitar a un máximo razonable (ej: 36 meses = 3 años)
+    return monthDiff.clamp(1, 36);
   }
 
   @override
@@ -34,12 +65,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.dispose();
   }
 
-  // Simular progreso por día (en una app real vendría de una base de datos)
-  double _getDayProgress(DateTime date) {
-    // Para demo, usar un cálculo basado en el día del mes
-    final dayOfMonth = date.day;
-    final progress = (dayOfMonth % 10) / 10.0; // 0.0 a 0.9
-    return progress.clamp(0.0, 1.0);
+  // Obtener progreso real de un día específico con caché persistente
+  Future<double> _getDayProgress(DateTime date) async {
+    final dateKey = '${date.year}-${date.month}-${date.day}';
+    
+    // Verificar si ya está en caché
+    if (_dayProgressCache.containsKey(dateKey)) {
+      return _dayProgressCache[dateKey]!;
+    }
+    
+    // Si la fecha está fuera del rango válido, return 0
+    if (_oldestHabitDate != null && date.isBefore(_oldestHabitDate!)) {
+      _dayProgressCache[dateKey] = 0.0;
+      return 0.0;
+    }
+    
+    if (date.isAfter(DateTime.now())) {
+      _dayProgressCache[dateKey] = 0.0;
+      return 0.0;
+    }
+    
+    try {
+      final habitService = Provider.of<HabitService>(context, listen: false);
+      final progress = await habitService.getDayProgress(date);
+      
+      // Guardar en caché permanentemente (no se elimina al cambiar de día)
+      _dayProgressCache[dateKey] = progress;
+      return progress;
+    } catch (e) {
+      debugPrint('Error loading progress for $dateKey: $e');
+      _dayProgressCache[dateKey] = 0.0;
+      return 0.0;
+    }
+  }
+
+  // Método para limpiar el caché si es necesario (ej: cuando se actualiza un hábito)
+  void _clearProgressCache() {
+    _dayProgressCache.clear();
+    if (mounted) setState(() {});
   }
 
   Color _getProgressColor(double progress) {
@@ -51,9 +114,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   DateTime _getMonthFromIndex(int index) {
-    final now = DateTime.now();
-    // index 0 = mes actual, index 1 = mes anterior, etc.
-    final targetMonth = DateTime(now.year, now.month - index, 1);
+    if (_oldestHabitDate == null) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month - index, 1);
+    }
+    
+    // Calcular desde el mes más antiguo hacia adelante
+    final oldestMonth = DateTime(_oldestHabitDate!.year, _oldestHabitDate!.month, 1);
+    final targetMonth = DateTime(oldestMonth.year, oldestMonth.month + index, 1);
     return targetMonth;
   }
 
@@ -102,8 +170,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
+    return Consumer2<ThemeProvider, HabitService>(
+      builder: (context, themeProvider, habitService, child) {
+        // Esperar a que los templates estén cargados antes de mostrar el calendario
+        if (habitService.habitTemplates.isEmpty) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                'Calendario',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+            body: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
         return Scaffold(
           appBar: AppBar(
             title: Text(
@@ -175,7 +267,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 padding: const EdgeInsets.only(top: 120),
                 child: ListView.builder(
                   controller: _scrollController,
-                  itemCount: 24, // 2 años hacia atrás
+                  itemCount: _getMonthCount(), // Rango dinámico basado en hábitos
                   itemBuilder: (context, index) {
                     final currentMonth = _getMonthFromIndex(index);
                     final calendarDays = _getCalendarDays(currentMonth);
@@ -225,7 +317,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 return Container();
                               }
 
-                              final progress = _getDayProgress(date);
                               final isSelected =
                                   date.year == _selectedDate.year &&
                                   date.month == _selectedDate.month &&
@@ -235,13 +326,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   date.month == DateTime.now().month &&
                                   date.day == DateTime.now().day;
 
-                              return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedDate = date;
-                                  });
-                                  Navigator.of(context).pop(date);
-                                },
+                              return FutureBuilder<double>(
+                                future: _getDayProgress(date),
+                                builder: (context, snapshot) {
+                                  final progress = snapshot.data ?? 0.0;
+                                  
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedDate = date;
+                                      });
+                                      Navigator.of(context).pop(date);
+                                    },
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: isSelected
@@ -320,9 +416,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       ),
                                     ],
                                   ),
-                                ),
-                              );
-                            },
+                                ), // Cierre del Container
+                              ); // Cierre del GestureDetector
+                                }); // Cierre del FutureBuilder builder
+                              }, // Cierre del itemBuilder
                           ),
                         ],
                       ),

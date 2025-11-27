@@ -27,10 +27,11 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     text: '1',
   );
 
-  String _selectedFrequency = 'Diario';
   String _selectedType = 'count';
   Category? _selectedCategory;
-  TimeOfDay _selectedTime = TimeOfDay.now();
+  
+  // Días de la semana seleccionados (1=Lunes, 7=Domingo)
+  Set<int> _selectedDays = {1, 2, 3, 4, 5, 6, 7}; // Por defecto todos los días
 
   List<Category> _userCategories = [
     Category(
@@ -71,8 +72,6 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   ];
   bool _isLoadingCategories = true;
 
-  final List<String> _frequencies = ['Diario', 'Semanal', 'Mensual'];
-
   @override
   void initState() {
     super.initState();
@@ -81,19 +80,14 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       _nameController.text = widget.habitData!['name'] ?? '';
       _descriptionController.text = widget.habitData!['description'] ?? '';
       _selectedType = widget.habitData!['type'] ?? 'count';
-      _selectedFrequency = widget.habitData!['frequency'] ?? 'Diario';
       _targetController.text = (widget.habitData!['target'] ?? 1).toString();
       _incrementController.text = (widget.habitData!['increment'] ?? 1)
           .toString();
 
-      // Inicializar el tiempo
-      final timeString = widget.habitData!['time'] ?? '09:00';
-      final timeParts = timeString.split(':');
-      if (timeParts.length == 2) {
-        _selectedTime = TimeOfDay(
-          hour: int.tryParse(timeParts[0]) ?? 9,
-          minute: int.tryParse(timeParts[1]) ?? 0,
-        );
+      // Cargar días activos si están disponibles
+      final activeDays = widget.habitData!['activeDays'] as List<dynamic>?;
+      if (activeDays != null) {
+        _selectedDays = activeDays.map((e) => e as int).toSet();
       }
     }
   }
@@ -217,8 +211,6 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
             _buildCategorySection(),
             const SizedBox(height: 24),
             _buildFrequencySection(),
-            const SizedBox(height: 24),
-            _buildTimeSection(),
             const SizedBox(height: 32),
             _buildSaveButton(),
           ],
@@ -636,6 +628,8 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   Widget _buildFrequencySection() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    
+    final dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -647,108 +641,72 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Frecuencia',
+              'Días de la semana',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: isDark ? Colors.white : AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Row(
-              children: _frequencies
-                  .map(
-                    (frequency) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ChoiceChip(
-                          label: Text(frequency),
-                          selected: _selectedFrequency == frequency,
-                          onSelected: (selected) {
-                            setState(() {
-                              _selectedFrequency = frequency;
-                            });
-                          },
-                          selectedColor: Provider.of<ThemeProvider>(
-                            context,
-                          ).primaryColor.withValues(alpha: 0.3),
-                          backgroundColor: isDark
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade200,
-                          labelStyle: TextStyle(
-                            color: _selectedFrequency == frequency
-                                ? Colors.white
-                                : (isDark
-                                      ? Colors.grey.shade300
-                                      : Colors.grey.shade700),
-                            fontWeight: _selectedFrequency == frequency
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(7, (index) {
+                final dayNumber = index + 1;
+                final isSelected = _selectedDays.contains(dayNumber);
+                
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedDays.remove(dayNumber);
+                      } else {
+                        _selectedDays.add(dayNumber);
+                      }
+                    });
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isSelected
+                          ? Provider.of<ThemeProvider>(context).primaryColor
+                          : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                      border: Border.all(
+                        color: isSelected
+                            ? Provider.of<ThemeProvider>(context).primaryColor
+                            : (isDark ? Colors.grey.shade600 : Colors.grey.shade300),
+                        width: 1,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        dayNames[index],
+                        style: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
                     ),
-                  )
-                  .toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTimeSection() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      color: theme.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Recordatorio',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: _selectTime,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
-                      ),
-                    ),
-                    Icon(
-                      Icons.access_time,
-                      color: Provider.of<ThemeProvider>(context).primaryColor,
-                    ),
-                  ],
+                );
+              }),
+            ),
+            if (_selectedDays.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Selecciona al menos un día',
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontSize: 12,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -780,23 +738,21 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     );
   }
 
-  Future<void> _selectTime() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-    );
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
-  }
-
   void _saveHabit() {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Por favor, ingresa un nombre para el hábito'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedDays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Por favor, selecciona al menos un día de la semana'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -813,7 +769,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       return;
     }
 
-    // Crear el nuevo hábito
+    // Crear el nuevo hábito template
     final newHabit = {
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
@@ -822,13 +778,11 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       'categoryIcon': _selectedCategory!.icon.codePoint,
       'categoryColor': _selectedCategory!
           .color
-          .value, // Keep for backward compatibility with stored data
-      'frequency': _selectedFrequency,
+          .value,
       'type': _selectedType,
       'target': int.tryParse(_targetController.text) ?? 1,
       'increment': int.tryParse(_incrementController.text) ?? 1,
-      'time':
-          '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+      'activeDays': _selectedDays.toList()..sort(), // Lista ordenada de días
       'progress': widget.isEditing
           ? (widget.habitData!['progress'] ?? 0.0)
           : 0.0,

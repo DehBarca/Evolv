@@ -1,43 +1,65 @@
-﻿class Habit {
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+
+class Habit {
   final String id;
-  final String name;
-  final String description;
-  final String categoryId;
-  final String frequency;
-  final String time;
-  final double progress;
+  final String idUser;
+  final String idTemplate;
+  final DateTime date;
+  final double value; // progreso de 0.0 a 1.0
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   Habit({
     required this.id,
-    required this.name,
-    required this.description,
-    required this.categoryId,
-    required this.frequency,
-    required this.time,
-    this.progress = 0.0,
+    required this.idUser,
+    required this.idTemplate,
+    required this.date,
+    required this.value,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'name': name,
-      'description': description,
-      'categoryId': categoryId,
-      'frequency': frequency,
-      'time': time,
-      'progress': progress,
+      'idUser': idUser,
+      'idTemplate': idTemplate,
+      'date': Timestamp.fromDate(date),
+      'value': value,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
     };
   }
 
-  factory Habit.fromMap(Map<String, dynamic> map) {
+  static Habit fromMap(Map<String, dynamic> map) {
     return Habit(
       id: map['id'] ?? '',
-      name: map['name'] ?? '',
-      description: map['description'] ?? '',
-      categoryId: map['categoryId'] ?? '',
-      frequency: map['frequency'] ?? 'Diario',
-      time: map['time'] ?? '00:00',
-      progress: (map['progress'] ?? 0.0).toDouble(),
+      idUser: map['idUser'] ?? '',
+      idTemplate: map['idTemplate'] ?? '',
+      date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      value: (map['value'] ?? 0.0).toDouble(),
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Habit copyWith({
+    String? id,
+    String? idUser,
+    String? idTemplate,
+    DateTime? date,
+    double? value,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Habit(
+      id: id ?? this.id,
+      idUser: idUser ?? this.idUser,
+      idTemplate: idTemplate ?? this.idTemplate,
+      date: date ?? this.date,
+      value: value ?? this.value,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

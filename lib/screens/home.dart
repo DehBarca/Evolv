@@ -36,7 +36,7 @@ class _HomePageState extends State<HomePage> {
     final habitService = Provider.of<HabitService>(context, listen: false);
     final userService = Provider.of<UserProfileService>(context, listen: false);
 
-    await habitService.initializeHabits();
+    await habitService.initializeHabits(date: selectedDate);
     final profile = await userService.getCurrentUserProfile();
 
     if (mounted && profile != null) {
@@ -63,7 +63,7 @@ class _HomePageState extends State<HomePage> {
 
     if (editedHabit != null && mounted) {
       final habitService = Provider.of<HabitService>(context, listen: false);
-      await habitService.updateHabit(habit['id'], editedHabit);
+      await habitService.updateHabitTemplate(habit['id'], editedHabit);
 
       if (mounted) {
         CustomSnackBar.showSuccess(
@@ -111,7 +111,7 @@ class _HomePageState extends State<HomePage> {
     if (index >= habitsList.length) return;
 
     final habit = habitsList[index];
-    habitService.incrementHabit(habit['id']);
+    habitService.incrementHabit(habit['habitId']);
   }
 
   // Método para decrementar progreso según el tipo de hábito
@@ -121,7 +121,7 @@ class _HomePageState extends State<HomePage> {
     if (index >= habitsList.length) return;
 
     final habit = habitsList[index];
-    habitService.decrementHabit(habit['id']);
+    habitService.decrementHabit(habit['habitId']);
   }
 
   String _getFormattedDate(DateTime date) {
@@ -157,9 +157,8 @@ class _HomePageState extends State<HomePage> {
 
   List<DateTime> _getWeekDays() {
     final today = DateTime.now();
-    final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-
-    return List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
+    // Generar últimos 7 días con hoy al final (derecha)
+    return List.generate(7, (index) => today.subtract(Duration(days: 6 - index)));
   }
 
   @override
@@ -256,10 +255,13 @@ class _HomePageState extends State<HomePage> {
                 weekDays: weekDays,
                 selectedDate: selectedDate,
                 habits: habits,
-                onDateSelected: (date) {
+                onDateSelected: (date) async {
                   setState(() {
                     selectedDate = date;
                   });
+                  // Cargar hábitos del día seleccionado
+                  final habitService = Provider.of<HabitService>(context, listen: false);
+                  await habitService.changeSelectedDate(date);
                 },
               ),
               Expanded(
@@ -299,9 +301,13 @@ class _HomePageState extends State<HomePage> {
                           itemCount: habits.length,
                           itemBuilder: (context, index) {
                             final habit = habits[index];
+                            final current = (habit['current'] ?? 0).toDouble();
+                            final objetivo = (habit['objetivo'] ?? 1).toDouble();
+                            final progress = objetivo > 0 ? (current / objetivo).clamp(0.0, 1.0) : 0.0;
+                            
                             return HabitCard(
-                              name: habit['name'],
-                              progress: habit['progress'],
+                              name: habit['name'] ?? 'Hábito',
+                              progress: progress,
                               onIncrement: () => _incrementHabit(index),
                               onDecrement: () => _decrementHabit(index),
                               onLongPress: () => _deleteHabit(index),

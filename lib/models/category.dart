@@ -35,16 +35,28 @@ class Category {
     return Category(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
-      icon: IconData(
-        map['iconCodePoint'] ?? Icons.category.codePoint,
-        fontFamily: map['iconFontFamily'],
-      ),
+      icon: _getIconFromMap(map),
       color: Color(map['colorValue'] ?? 0xFF2196F3),
       userId: map['userId'] ?? '',
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
           : DateTime.now(),
     );
+  }
+
+  // Helper para obtener icon de forma segura
+  static IconData _getIconFromMap(Map<String, dynamic> map) {
+    final codePoint = map['iconCodePoint'];
+    final fontFamily = map['iconFontFamily'];
+    
+    if (codePoint != null) {
+      return IconData(
+        codePoint,
+        fontFamily: fontFamily,
+      );
+    }
+    
+    return Icons.category; // Icono por defecto constante
   }
 
   // Copiar con modificaciones

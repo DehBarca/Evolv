@@ -13,9 +13,8 @@ class OverallProgressCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final double avgProgress =
-        habits.map((h) => h['progress'] as double).reduce((a, b) => a + b) /
-        habits.length;
+    final double avgProgress = habits.isEmpty ? 0.0 : 
+        habits.map((h) => (h['progress'] as double? ?? 0.0)).reduce((a, b) => a + b) / habits.length;
 
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
