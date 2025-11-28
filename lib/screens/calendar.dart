@@ -45,8 +45,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (!mounted) return;
     
     final habitService = Provider.of<HabitService>(context, listen: false);
+    
+    // Forzar recálculo de la fecha más antigua para asegurar datos actualizados
+    await habitService.recalculateOldestHabitDate();
+    
     _oldestHabitDate = habitService.getOldestHabitDate();
-    debugPrint('Oldest habit date: $_oldestHabitDate');
+    debugPrint('📅 Calendar initialized with oldest habit date: $_oldestHabitDate');
     
     // Cargar TODOS los progresos en una sola consulta
     await _loadAllProgressInBatch();

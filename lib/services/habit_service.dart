@@ -61,58 +61,6 @@ class HabitService extends ChangeNotifier {
         createdAt: now,
         updatedAt: now,
       ),
-      HabitTemplate(
-        id: "",
-        userId: _userId,
-        titulo: "Meditar",
-        description: "Meditación mindfulness",
-        type: "time",
-        objetivo: 15,
-        increment: 5,
-        category: "Bienestar",
-        activeDays: [1, 2, 3, 4, 5, 6, 7],
-        createdAt: now,
-        updatedAt: now,
-      ),
-      HabitTemplate(
-        id: "",
-        userId: _userId,
-        titulo: "Beber agua",
-        description: "Mantener hidratación adecuada",
-        type: "count",
-        objetivo: 8,
-        increment: 1,
-        category: "Salud",
-        activeDays: [1, 2, 3, 4, 5, 6, 7],
-        createdAt: now,
-        updatedAt: now,
-      ),
-      HabitTemplate(
-        id: "",
-        userId: _userId,
-        titulo: "Estudiar",
-        description: "Estudio académico o profesional",
-        type: "time",
-        objetivo: 60,
-        increment: 15,
-        category: "Educación",
-        activeDays: [1, 2, 3, 4, 5],
-        createdAt: now,
-        updatedAt: now,
-      ),
-      HabitTemplate(
-        id: "template_6",
-        userId: _userId,
-        titulo: "3 obras buenas",
-        description: "Actos de bondad diarios",
-        type: "count",
-        objetivo: 3,
-        increment: 1,
-        category: "Personal",
-        activeDays: [1, 2, 3, 4, 5, 6, 7],
-        createdAt: now,
-        updatedAt: now,
-      ),
     ];
   }
 
@@ -274,39 +222,136 @@ class HabitService extends ChangeNotifier {
   // Obtener fecha del hábito más antiguo
   Future<void> _getOldestHabitDate() async {
     try {
-      final snapshot = await _firestore
+      DateTime? oldestDate;
+
+      // 1. Buscar en la colección 'habits' 
+      final habitsSnapshot = await _firestore
           .collection('habits')
           .where('idUser', isEqualTo: _userId)
           .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        DateTime? oldestDate;
+      for (final doc in habitsSnapshot.docs) {
+        try {
+          final data = doc.data();
+          final timestamp = data['date'] as Timestamp;
+          final habitDate = timestamp.toDate();
+          final normalizedDate = DateTime(
+            habitDate.year,
+            habitDate.month,
+            habitDate.day,
+          );
 
-        for (final doc in snapshot.docs) {
+          if (oldestDate == null || normalizedDate.isBefore(oldestDate)) {
+            oldestDate = normalizedDate;
+          }
+        } catch (e) {
+          // Ignorar documentos con fechas inválidas
+        }
+      }
+
+      // 2. Buscar en la colección 'daily_progress' (evitando consulta con índice compuesto)
+      try {
+        final progressSnapshot = await _firestore
+            .collection('daily_progress')
+            .where('idUser', isEqualTo: _userId)
+            .get();
+
+        for (final doc in progressSnapshot.docs) {
           try {
             final data = doc.data();
             final timestamp = data['date'] as Timestamp;
-            final habitDate = timestamp.toDate();
+            final progressDate = timestamp.toDate();
             final normalizedDate = DateTime(
-              habitDate.year,
-              habitDate.month,
-              habitDate.day,
+              progressDate.year,
+              progressDate.month,
+              progressDate.day,
             );
 
             if (oldestDate == null || normalizedDate.isBefore(oldestDate)) {
               oldestDate = normalizedDate;
             }
           } catch (e) {
-            // Ignorar documentos con fechas inválidas
+            debugPrint('Error parsing daily_progress date: $e');
           }
         }
+      } catch (e) {
+        debugPrint('Error accessing daily_progress (likely missing index): $e');
+        debugPrint('💡 To fix this, create the Firestore index at:');
+        debugPrint('https://console.firebase.google.com/v1/r/project/evolv-a53b7/firestore/indexes');
+      }
 
-        _oldestHabitDate = oldestDate ?? DateTime.now();
+      // 3. Buscar en habit_history si existe
+      try {
+        final historySnapshot = await _firestore
+            .collection('users')
+            .doc(_userId)
+            .collection('habit_history')
+            .orderBy(FieldPath.documentId, descending: false)
+            .limit(1)
+            .get();
+
+        if (historySnapshot.docs.isNotEmpty) {
+          try {
+            final docId = historySnapshot.docs.first.id;
+            // El docId está en formato 'YYYY-MM-DD'
+            final dateParts = docId.split('-');
+            if (dateParts.length == 3) {
+              final year = int.parse(dateParts[0]);
+              final month = int.parse(dateParts[1]);
+              final day = int.parse(dateParts[2]);
+              final historyDate = DateTime(year, month, day);
+
+              if (oldestDate == null || historyDate.isBefore(oldestDate)) {
+                oldestDate = historyDate;
+              }
+            }
+          } catch (e) {
+            debugPrint('Error parsing habit_history date: $e');
+          }
+        }
+      } catch (e) {
+        debugPrint('Error accessing habit_history: $e');
+      }
+
+      _oldestHabitDate = oldestDate ?? DateTime.now();
+      debugPrint('📅 Oldest habit date calculated: ${_oldestHabitDate!.toIso8601String().split('T')[0]}');
+      
+      // Si no se encontró fecha en Firestore, usar la fecha más antigua de los templates cargados
+      if (oldestDate == null && _habitTemplates.isNotEmpty) {
+        DateTime? oldestFromTemplates;
+        for (final template in _habitTemplates) {
+          if (oldestFromTemplates == null || template.createdAt.isBefore(oldestFromTemplates)) {
+            oldestFromTemplates = template.createdAt;
+          }
+        }
+        if (oldestFromTemplates != null) {
+          _oldestHabitDate = DateTime(
+            oldestFromTemplates.year,
+            oldestFromTemplates.month,
+            oldestFromTemplates.day,
+          );
+          debugPrint('📅 Using template creation date as oldest: ${_oldestHabitDate!.toIso8601String().split('T')[0]}');
+        }
+      }
+      
+    } catch (e) {
+      debugPrint('Error calculating oldest habit date: $e');
+      
+      // Fallback: usar la fecha más antigua de templates si están disponibles
+      if (_habitTemplates.isNotEmpty) {
+        DateTime? oldestFromTemplates;
+        for (final template in _habitTemplates) {
+          if (oldestFromTemplates == null || template.createdAt.isBefore(oldestFromTemplates)) {
+            oldestFromTemplates = template.createdAt;
+          }
+        }
+        _oldestHabitDate = oldestFromTemplates != null 
+          ? DateTime(oldestFromTemplates.year, oldestFromTemplates.month, oldestFromTemplates.day)
+          : DateTime.now();
       } else {
         _oldestHabitDate = DateTime.now();
       }
-    } catch (e) {
-      _oldestHabitDate = DateTime.now();
+      debugPrint('📅 Fallback oldest habit date: ${_oldestHabitDate!.toIso8601String().split('T')[0]}');
     }
   }
 
@@ -1255,11 +1300,45 @@ class HabitService extends ChangeNotifier {
   DateTime getOldestHabitDate() {
     // Si ya se calculó la fecha más antigua, usarla
     if (_oldestHabitDate != null) {
+      debugPrint('📅 Using cached oldest habit date: ${_oldestHabitDate!.toIso8601String().split('T')[0]}');
       return _oldestHabitDate!;
     }
 
-    // Fallback: usar fecha de hoy si no hay hábitos históricos
-    return DateTime.now();
+    // Si no se ha calculado, intentar calcularla de forma síncrona con los datos disponibles
+    DateTime? oldestFromTemplates;
+    if (_habitTemplates.isNotEmpty) {
+      for (final template in _habitTemplates) {
+        if (oldestFromTemplates == null || template.createdAt.isBefore(oldestFromTemplates)) {
+          oldestFromTemplates = DateTime(
+            template.createdAt.year,
+            template.createdAt.month,
+            template.createdAt.day,
+          );
+        }
+      }
+    }
+
+    // Fallback: usar fecha calculada de templates o fecha de hoy
+    final fallbackDate = oldestFromTemplates ?? DateTime.now();
+    debugPrint('📅 Using fallback oldest habit date: ${fallbackDate.toIso8601String().split('T')[0]}');
+    return fallbackDate;
+  }
+
+  /// Fuerza el recálculo de la fecha más antigua (útil para debugging)
+  Future<void> recalculateOldestHabitDate() async {
+    _oldestHabitDate = null; // Limpiar caché
+    await _getOldestHabitDate(); // Recalcular
+    notifyListeners();
+  }
+
+  /// Proporciona información sobre índices necesarios en Firestore
+  void logFirestoreIndexInfo() {
+    debugPrint('🔥 FIRESTORE INDEX REQUIRED:');
+    debugPrint('Collection: daily_progress');
+    debugPrint('Fields to index:');
+    debugPrint('  - idUser (Ascending)');
+    debugPrint('  - date (Ascending)');
+    debugPrint('Create index at: https://console.firebase.google.com/v1/r/project/evolv-a53b7/firestore/indexes');
   }
 
   /// Carga hábitos para una fecha específica (sin cambiar _selectedDate)
@@ -1343,32 +1422,57 @@ class HabitService extends ChangeNotifier {
     DateTime startDate,
     DateTime endDate,
   ) async {
-    if (_userId.isEmpty) return {};
+    if (_userId.isEmpty) {
+      debugPrint('❌ getDailyProgressRange: No user ID available');
+      return {};
+    }
 
     try {
       final start = DateTime(startDate.year, startDate.month, startDate.day);
       final end = DateTime(endDate.year, endDate.month, endDate.day);
+      
+      debugPrint('🔍 Querying daily_progress from ${start.toIso8601String().split('T')[0]} to ${end.toIso8601String().split('T')[0]}');
+      
       final querySnapshot = await _firestore
           .collection('daily_progress')
           .where('idUser', isEqualTo: _userId)
           .get();
+          
+      debugPrint('📊 Found ${querySnapshot.docs.length} daily_progress documents');
+      
       final progressMap = <String, double>{};
 
       for (final doc in querySnapshot.docs) {
         try {
           final progress = DailyProgress.fromMap({...doc.data(), 'id': doc.id});
+          
+          // Verificar si está en el rango de fechas
           if (progress.date.isAfter(end) || progress.date.isBefore(start)) {
             continue;
           }
-          final dateKey =
-              '${progress.date.year}-${progress.date.month}-${progress.date.day}';
+          
+          final dateKey = '${progress.date.year}-${progress.date.month}-${progress.date.day}';
           progressMap[dateKey] = progress.overallProgress;
+          
+          debugPrint('📅 Added progress for $dateKey: ${(progress.overallProgress * 100).toStringAsFixed(1)}%');
         } catch (e) {
-          // Skip invalid documents
+          debugPrint('❌ Error parsing daily_progress document ${doc.id}: $e');
         }
       }
+      
+      debugPrint('✅ Successfully loaded ${progressMap.length} progress records from daily_progress');
       return progressMap;
     } catch (e) {
+      debugPrint('❌ Error querying daily_progress, falling back to individual queries: $e');
+      
+      // Si es un error de índice, mostrar información útil
+      if (e.toString().contains('requires an index')) {
+        debugPrint('🔥 FIRESTORE INDEX REQUIRED for daily_progress collection');
+        debugPrint('💡 Create composite index with fields: idUser, date');
+        debugPrint('🔗 Create at: https://console.firebase.google.com/v1/r/project/evolv-a53b7/firestore/indexes');
+      }
+      
+      // Fallback: cargar progreso día por día
       final progressMap = <String, double>{};
       DateTime currentDate = DateTime(
         startDate.year,
@@ -1377,16 +1481,23 @@ class HabitService extends ChangeNotifier {
       );
       final enddateNorm = DateTime(endDate.year, endDate.month, endDate.day);
 
+      int daysProcessed = 0;
       while (currentDate.isBefore(enddateNorm) ||
           currentDate.isAtSameMomentAs(enddateNorm)) {
         final progress = await getDayProgress(currentDate);
-        final dateKey =
-            '${currentDate.year}-${currentDate.month}-${currentDate.day}';
+        final dateKey = '${currentDate.year}-${currentDate.month}-${currentDate.day}';
         progressMap[dateKey] = progress;
         currentDate = currentDate.add(const Duration(days: 1));
+        daysProcessed++;
 
-        if (progressMap.length > 90) break;
+        // Limitar a 90 días para evitar consultas excesivas en el fallback
+        if (daysProcessed > 90) {
+          debugPrint('⚠️ Limiting fallback to 90 days to prevent excessive queries');
+          break;
+        }
       }
+      
+      debugPrint('✅ Fallback loaded ${progressMap.length} progress records');
       return progressMap;
     }
   }
