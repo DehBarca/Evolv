@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
 import '../providers/theme_provider.dart';
 import '../services/user_profile_service.dart';
 import 'change_password_screen.dart';
@@ -117,20 +118,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 80,
+        maxWidth: 400, // Reducir tamaño para Base64
+        maxHeight: 400,
+        imageQuality: 70,
       );
 
       if (image != null) {
-        // En una implementación real, aquí subirías la imagen a Firebase Storage
-        // y obtendrías la URL de descarga. Por ahora, mostramos el path local.
+        setState(() => _isLoading = true);
+        
+        // SOLUCIÓN TEMPORAL: Convertir a Base64 para almacenar en Firestore
+        final bytes = await image.readAsBytes();
+        final base64String = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        
+        // Actualizar el campo URL con la cadena Base64
+        setState(() {
+          _photoUrlController.text = base64String;
+          _isLoading = false;
+        });
+        
         _showInfoDialog(
-          'Imagen seleccionada',
-          'Imagen seleccionada: ${image.name}\n\nNota: Para una implementación completa, la imagen se subiría a Firebase Storage y se obtendría una URL pública.',
+          'Imagen cargada',
+          'Tu imagen ha sido procesada. Guarda los cambios para aplicarla a tu perfil.',
         );
       }
     } catch (e) {
+      setState(() => _isLoading = false);
       _showErrorDialog(
         'Error',
         'No se pudo seleccionar la imagen: ${e.toString()}',
@@ -142,20 +154,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 80,
+        maxWidth: 400,
+        maxHeight: 400,
+        imageQuality: 70,
       );
 
       if (image != null) {
-        // En una implementación real, aquí subirías la imagen a Firebase Storage
-        // y obtendrías la URL de descarga. Por ahora, mostramos el path local.
+        setState(() => _isLoading = true);
+        
+        // Convertir a Base64 para almacenar en Firestore
+        final bytes = await image.readAsBytes();
+        final base64String = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        
+        // Actualizar el campo URL con la cadena Base64
+        setState(() {
+          _photoUrlController.text = base64String;
+          _isLoading = false;
+        });
+        
         _showInfoDialog(
-          'Foto tomada',
-          'Foto tomada: ${image.name}\n\nNota: Para una implementación completa, la imagen se subiría a Firebase Storage y se obtendría una URL pública.',
+          'Foto capturada',
+          'Tu foto ha sido procesada. Guarda los cambios para aplicarla a tu perfil.',
         );
       }
     } catch (e) {
+      setState(() => _isLoading = false);
       _showErrorDialog('Error', 'No se pudo tomar la foto: ${e.toString()}');
     }
   }
@@ -381,20 +404,35 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               child: ClipOval(
                 child: _photoUrlController.text.isNotEmpty
-                    ? Image.network(
-                        _photoUrlController.text,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: isDark ? Colors.grey[800] : Colors.grey[200],
-                            child: Icon(
-                              Icons.person,
-                              size: 60,
-                              color: themeProvider.primaryColor,
-                            ),
-                          );
-                        },
-                      )
+                    ? _photoUrlController.text.startsWith('data:image')
+                        ? Image.memory(
+                            base64Decode(_photoUrlController.text.split(',')[1]),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: isDark ? Colors.grey[800] : Colors.grey[200],
+                                child: Icon(
+                                  Icons.person,
+                                  size: 60,
+                                  color: themeProvider.primaryColor,
+                                ),
+                              );
+                            },
+                          )
+                        : Image.network(
+                            _photoUrlController.text,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: isDark ? Colors.grey[800] : Colors.grey[200],
+                                child: Icon(
+                                  Icons.person,
+                                  size: 60,
+                                  color: themeProvider.primaryColor,
+                                ),
+                              );
+                            },
+                          )
                     : Container(
                         color: isDark ? Colors.grey[800] : Colors.grey[200],
                         child: Icon(

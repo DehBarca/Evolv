@@ -137,9 +137,10 @@ class UserProfileService {
         await user.updateDisplayName(newDisplayName);
       }
 
-      // Actualizar photoURL en Firebase Auth si cambió
+      // NO actualizar photoURL en Firebase Auth si es Base64 (Firebase Auth no soporta data URLs)
       if (profile.photoUrl != null &&
           profile.photoUrl!.isNotEmpty &&
+          !profile.photoUrl!.startsWith('data:image') &&
           profile.photoUrl != user.photoURL) {
         await user.updatePhotoURL(profile.photoUrl);
       } else if (profile.photoUrl == null && user.photoURL != null) {

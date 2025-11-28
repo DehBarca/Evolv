@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'dart:convert';
 import '../constants/app_constants.dart';
 import '../services/user_profile_service.dart';
 import '../services/habit_service.dart';
@@ -24,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String bio = "";
   String goals = "";
   String? photoURL;
+  bool _imageLoadError = false; // Para rastrear errores de carga de imagen
   bool _isLoading = true;
 
   // Estadísticas de hábitos
@@ -69,12 +71,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           bio = profile.bio;
           goals = profile.goals;
           photoURL = profile.photoUrl;
+          _imageLoadError = false; // Resetear error al cargar nueva foto
         });
       } else if (mounted && user != null) {
         setState(() {
           firstName = user.displayName ?? 'Usuario';
           userEmail = user.email ?? '';
           photoURL = user.photoURL;
+          _imageLoadError = false; // Resetear error al cargar nueva foto
         });
       }
 
@@ -190,24 +194,128 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Consumer<ThemeProvider>(
                     builder: (context, themeProvider, child) {
+                      // Procesar URL de Google para evitar problemas de CORS
+                      String? processedImageUrl;
+                      if (photoURL != null && photoURL!.isNotEmpty) {
+                        if (photoURL!.contains('googleusercontent.com')) {
+                          // Modificar la URL de Google para mejorar compatibilidad
+                          processedImageUrl = photoURL!.replaceAll('=s96-c', '=s200-c');
+                        } else {
+                          processedImageUrl = photoURL;
+                        }
+                      }
+                      
+                      // Si hay error de carga o URL vacía, mostrar iniciales
+                      final shouldShowImage = processedImageUrl != null && 
+                                            processedImageUrl.isNotEmpty && 
+                                            !_imageLoadError;
+                      
                       return CircleAvatar(
                         radius: 50,
                         backgroundColor: themeProvider.primaryColor,
-                        backgroundImage: photoURL != null
-                            ? NetworkImage(photoURL!)
-                            : null,
-                        child: photoURL == null
-                            ? Text(
-                                fullName.isNotEmpty
-                                    ? fullName[0].toUpperCase()
-                                    : 'U',
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                        child: shouldShowImage
+                            ? ClipOval(
+                                child: processedImageUrl.startsWith('data:image')
+                                    ? Image.memory(
+                                        base64Decode(processedImageUrl.split(',')[1]),
+                                        width: 100,
+                                        height: 100,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                                            setState(() {
+                                              _imageLoadError = true;
+                                            });
+                                          });
+                                          return Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                fullName.isNotEmpty
+                                                    ? fullName[0].toUpperCase()
+                                                    : 'U',
+                                                style: const TextStyle(
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      )
+                                    : Image.network(
+                                        processedImageUrl,
+                                        width: 100,
+                                        height: 100,
+                                        fit: BoxFit.cover,
+                                        headers: {
+                                          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+                                          'Referer': 'https://accounts.google.com/',
+                                        },
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return const Center(
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2,
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                fullName.isNotEmpty
+                                                    ? fullName[0].toUpperCase()
+                                                    : 'U',
+                                                style: const TextStyle(
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              if (photoURL?.contains('googleusercontent.com') == true)
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.info_outline,
+                                                      color: Colors.white70,
+                                                      size: 12,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      'Google',
+                                                      style: TextStyle(
+                                                        fontSize: 9,
+                                                        color: Colors.white70,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                            ],
+                                          );
+                                        },
+                                      ),
                               )
-                            : null,
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    fullName.isNotEmpty
+                                        ? fullName[0].toUpperCase()
+                                        : 'U',
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
                       );
                     },
                   ),
