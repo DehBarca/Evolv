@@ -55,8 +55,15 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
-      // Login exitoso - El AuthWrapper se encargará de navegar automáticamente
-      // No reseteamos _isLoading aquí porque el widget será desmontado
+
+      // Agregar un pequeño delay y luego resetear loading por si no navega automáticamente
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       // Solo en caso de error reseteamos el loading
       if (mounted) {
@@ -109,7 +116,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await _authService.signInWithGoogle();
-      // Login exitoso - El AuthWrapper se encargará de navegar automáticamente
+
+      // Agregar un pequeño delay y luego resetear loading por si no navega automáticamente
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {

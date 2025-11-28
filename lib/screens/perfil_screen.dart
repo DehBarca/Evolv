@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_constants.dart';
@@ -111,7 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       // Calcular racha actual usando la nueva estructura
       currentStreak = await habitService.getStreakFromDailyProgress();
-      
+
       // Calcular hábitos completados hoy
       completedHabitsToday = await _getCompletedHabitsToday(habitService);
     } catch (e) {
@@ -123,16 +122,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       completedHabitsToday = 0;
     }
   }
-  
+
   Future<int> _getCompletedHabitsToday(HabitService habitService) async {
     try {
       // Obtener hábitos del día actual desde el servicio
       final dailyHabits = habitService.dailyHabits;
-      
+
       if (dailyHabits.isEmpty) {
         return 0;
       }
-      
+
       // Contar hábitos completados (progreso >= 1.0)
       return dailyHabits.where((habit) => habit.value >= 1.0).length;
     } catch (e) {
@@ -278,6 +277,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 24),
 
+            // Mostrar estadísticas arriba si hay biografía o metas
+            if (bio.isNotEmpty || goals.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Estadísticas',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Hábitos',
+                            totalHabits.toString(),
+                            Icons.task_alt,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Completados',
+                            '$completedHabitsToday/$totalHabits',
+                            Icons.check_circle,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Racha',
+                            currentStreak > 0
+                                ? '$currentStreak día${currentStreak > 1 ? 's' : ''}'
+                                : '0 días',
+                            Icons.local_fire_department,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Progreso',
+                            '${(overallProgress * 100).toStringAsFixed(0)}%',
+                            Icons.trending_up,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+            if (bio.isNotEmpty) const SizedBox(height: 24),
+
             // Biografía
             if (bio.isNotEmpty)
               Container(
@@ -397,75 +470,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (goals.isNotEmpty) const SizedBox(height: 16),
 
             // Estadísticas
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Estadísticas',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
+            if (!(bio.isNotEmpty || goals.isNotEmpty))
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Hábitos',
-                          totalHabits.toString(),
-                          Icons.task_alt,
-                        ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Estadísticas',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Completados',
-                          '$completedHabitsToday/$totalHabits',
-                          Icons.check_circle,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Hábitos',
+                            totalHabits.toString(),
+                            Icons.task_alt,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Racha',
-                          currentStreak > 0
-                              ? '$currentStreak día${currentStreak > 1 ? 's' : ''}'
-                              : '0 días',
-                          Icons.local_fire_department,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Completados',
+                            '$completedHabitsToday/$totalHabits',
+                            Icons.check_circle,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Progreso',
-                          '${(overallProgress * 100).toStringAsFixed(0)}%',
-                          Icons.trending_up,
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Racha',
+                            currentStreak > 0
+                                ? '$currentStreak día${currentStreak > 1 ? 's' : ''}'
+                                : '0 días',
+                            Icons.local_fire_department,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Progreso',
+                            '${(overallProgress * 100).toStringAsFixed(0)}%',
+                            Icons.trending_up,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

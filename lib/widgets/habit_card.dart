@@ -10,6 +10,9 @@ class HabitCard extends StatelessWidget {
   final VoidCallback? onDecrement;
   final VoidCallback? onLongPress;
   final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final VoidCallback? onTap;
+  final VoidCallback? onToggle;
 
   const HabitCard({
     super.key,
@@ -19,6 +22,9 @@ class HabitCard extends StatelessWidget {
     this.onDecrement,
     this.onLongPress,
     this.onEdit,
+    this.onDelete,
+    this.onTap,
+    this.onToggle,
   });
 
   @override
@@ -29,6 +35,7 @@ class HabitCard extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return GestureDetector(
+          onTap: onTap,
           onLongPress: onLongPress,
           child: Card(
             shape: RoundedRectangleBorder(
@@ -69,14 +76,32 @@ class HabitCard extends StatelessWidget {
                           ),
                           padding: EdgeInsets.zero,
                         ),
+                      if (onDelete != null)
+                        IconButton(
+                          onPressed: onDelete,
+                          icon: const Icon(Icons.delete_outline),
+                          iconSize: 18,
+                          color: AppColors.error,
+                          constraints: const BoxConstraints(
+                            minWidth: 28,
+                            minHeight: 28,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
                       const SizedBox(width: 4),
-                      Icon(
-                        progress == 1.0
-                            ? Icons.check_circle
-                            : Icons.circle_outlined,
-                        color: progress == 1.0
-                            ? AppColors.success
-                            : AppColors.borderColor,
+                      GestureDetector(
+                        onTap: onToggle,
+                        child: Icon(
+                          progress == 1.0
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
+                          color: progress == 1.0
+                              ? AppColors.success
+                              : (onToggle != null
+                                    ? themeProvider.primaryColor
+                                    : AppColors.borderColor),
+                          size: 24,
+                        ),
                       ),
                     ],
                   ),

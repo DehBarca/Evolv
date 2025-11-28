@@ -17,7 +17,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  final _ageController = TextEditingController();
+  DateTime? _dateOfBirth;
+  bool _dateOfBirthSaved = false; // Rastrear si la fecha ya fue guardada
   final _bioController = TextEditingController();
   final _goalsController = TextEditingController();
   final _photoUrlController = TextEditingController();
@@ -37,7 +38,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _lastNameController.dispose();
-    _ageController.dispose();
     _bioController.dispose();
     _goalsController.dispose();
     _photoUrlController.dispose();
@@ -51,7 +51,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         setState(() {
           _nameController.text = profile.firstName;
           _lastNameController.text = profile.lastName;
-          _ageController.text = profile.age > 0 ? profile.age.toString() : '';
+          _dateOfBirth = profile.dateOfBirth;
+          _dateOfBirthSaved =
+              profile.dateOfBirth != null; // Si ya existe fecha, está guardada
           _bioController.text = profile.bio;
           _goalsController.text = profile.goals;
           _photoUrlController.text = profile.photoUrl ?? '';
@@ -76,7 +78,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         firstName: _nameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         email: _auth.currentUser!.email ?? '',
-        age: int.tryParse(_ageController.text.trim()) ?? 0,
+        dateOfBirth: _dateOfBirth,
         bio: _bioController.text.trim(),
         goals: _goalsController.text.trim(),
         photoUrl: _photoUrlController.text.trim().isNotEmpty
@@ -85,6 +87,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
 
       await _profileService.updateUserProfile(profile);
+
+      // Marcar fecha como guardada si se estableció
+      if (_dateOfBirth != null && !_dateOfBirthSaved) {
+        _dateOfBirthSaved = true;
+      }
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -193,6 +200,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _pickDate() async {
+    // Si la fecha ya fue guardada, no permitir cambios
+    if (_dateOfBirthSaved) {
+      _showDateLockedDialog();
+      return;
+    }
+
+    if (!mounted) return;
+
+    final now = DateTime.now();
+    final initial = _dateOfBirth ?? DateTime(now.year - 25, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: now,
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _dateOfBirth = picked;
+      });
+    }
+  }
+
+  void _showDateLockedDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Fecha de nacimiento bloqueada'),
+        content: const Text(
+          'La fecha de nacimiento solo se puede establecer una vez por motivos de seguridad. Si necesitas cambiarla, contacta con soporte.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -483,28 +532,59 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Campo edad
+            // Campo fecha de nacimiento (reemplaza campo edad)
             TextFormField(
-              controller: _ageController,
-              keyboardType: TextInputType.number,
+              readOnly: true,
+              initialValue: _dateOfBirth != null
+                  ? '${_dateOfBirth!.day.toString().padLeft(2, '0')}/${_dateOfBirth!.month.toString().padLeft(2, '0')}/${_dateOfBirth!.year}'
+                  : '',
               decoration: InputDecoration(
-                labelText: 'Edad',
+                labelText: _dateOfBirth != null
+                    ? '${_dateOfBirth!.day.toString().padLeft(2, '0')}/${_dateOfBirth!.month.toString().padLeft(2, '0')}/${_dateOfBirth!.year}'
+                    : 'Fecha de nacimiento',
+                hintText: _dateOfBirth == null
+                    ? 'Selecciona tu fecha de nacimiento'
+                    : null,
                 border: const OutlineInputBorder(),
                 focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: themeProvider.primaryColor),
+                  borderSide: BorderSide(
+                    color: _dateOfBirthSaved
+                        ? Colors.grey
+                        : themeProvider.primaryColor,
+                  ),
                 ),
                 labelStyle: TextStyle(
-                  color: isDark ? Colors.white70 : Colors.grey.shade600,
+                  color: _dateOfBirthSaved
+                      ? Colors.grey
+                      : (isDark ? Colors.white70 : Colors.grey.shade600),
                 ),
                 floatingLabelStyle: TextStyle(
-                  color: themeProvider.primaryColor,
+                  color: _dateOfBirthSaved
+                      ? Colors.grey
+                      : themeProvider.primaryColor,
                 ),
-                prefixIcon: Icon(Icons.cake, color: themeProvider.primaryColor),
+                prefixIcon: Icon(
+                  _dateOfBirthSaved ? Icons.lock : Icons.cake,
+                  color: _dateOfBirthSaved
+                      ? Colors.grey
+                      : themeProvider.primaryColor,
+                ),
+                suffixIcon: _dateOfBirthSaved
+                    ? Icon(Icons.info_outline, color: Colors.grey)
+                    : null,
               ),
+              onTap: _dateOfBirthSaved ? _showDateLockedDialog : _pickDate,
               validator: (value) {
-                if (value != null && value.isNotEmpty) {
-                  final age = int.tryParse(value);
-                  if (age == null || age < 1 || age > 120) {
+                if (_dateOfBirth != null) {
+                  final now = DateTime.now();
+                  int years = now.year - _dateOfBirth!.year;
+                  final birthdayThisYear = DateTime(
+                    now.year,
+                    _dateOfBirth!.month,
+                    _dateOfBirth!.day,
+                  );
+                  if (now.isBefore(birthdayThisYear)) years -= 1;
+                  if (years < 1 || years > 120) {
                     return 'Ingresa una edad válida (1-120)';
                   }
                 }

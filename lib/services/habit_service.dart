@@ -36,7 +36,7 @@ class HabitService extends ChangeNotifier {
     final now = DateTime.now();
     return [
       HabitTemplate(
-        id: "template_1",
+        id: "", // Se generará automáticamente
         userId: _userId,
         titulo: "Correr",
         description: "Ejercicio cardiovascular diario",
@@ -49,7 +49,7 @@ class HabitService extends ChangeNotifier {
         updatedAt: now,
       ),
       HabitTemplate(
-        id: "template_2",
+        id: "",
         userId: _userId,
         titulo: "Leer 20 min",
         description: "Lectura diaria para crecimiento personal",
@@ -62,7 +62,7 @@ class HabitService extends ChangeNotifier {
         updatedAt: now,
       ),
       HabitTemplate(
-        id: "template_3",
+        id: "",
         userId: _userId,
         titulo: "Meditar",
         description: "Meditación mindfulness",
@@ -75,7 +75,7 @@ class HabitService extends ChangeNotifier {
         updatedAt: now,
       ),
       HabitTemplate(
-        id: "template_4",
+        id: "",
         userId: _userId,
         titulo: "Beber agua",
         description: "Mantener hidratación adecuada",
@@ -88,7 +88,7 @@ class HabitService extends ChangeNotifier {
         updatedAt: now,
       ),
       HabitTemplate(
-        id: "template_5",
+        id: "",
         userId: _userId,
         titulo: "Estudiar",
         description: "Estudio académico o profesional",
@@ -117,24 +117,34 @@ class HabitService extends ChangeNotifier {
   }
 
   Future<void> initializeHabits({DateTime? date}) async {
-    if (_userId.isEmpty) return;
+    if (_userId.isEmpty) {
+      debugPrint('HabitService: No user ID available, skipping initialization');
+      return;
+    }
 
     _isLoading = true;
     _error = null;
     _selectedDate = date ?? DateTime.now();
+    debugPrint(
+      'HabitService: Initializing habits for user: $_userId, date: $_selectedDate',
+    );
     notifyListeners();
 
     try {
       await _loadHabitTemplates();
       await _loadDailyHabits(_selectedDate);
-      
-      if (_dailyHabits.isEmpty && _habitTemplates.isNotEmpty) {
+
+      // Siempre intentar crear hábitos faltantes si hay templates
+      if (_habitTemplates.isNotEmpty) {
         await _createMissingDailyHabits(_selectedDate);
       }
-      
+
       await _getOldestHabitDate();
       _generateLegacyHabitsData();
 
+      debugPrint(
+        'Initialization complete. Final habits count: ${_habits.length}',
+      );
     } catch (e) {
       _error = 'Error al cargar hábitos: $e';
       if (_habitTemplates.isEmpty) {
@@ -149,20 +159,48 @@ class HabitService extends ChangeNotifier {
       notifyListeners();
     }
   }
+
   // Cargar templates del usuario
   Future<void> _loadHabitTemplates() async {
     try {
+      if (_userId.isEmpty) {
+        debugPrint('Cannot load templates: user ID is empty');
+        _habitTemplates = [];
+        return;
+      }
+
+      debugPrint('Loading templates for user: $_userId');
       final snapshot = await _firestore
           .collection('habit_templates')
           .where('userId', isEqualTo: _userId)
           .get();
 
+      debugPrint('Found ${snapshot.docs.length} template documents');
+
       if (snapshot.docs.isEmpty) {
+        debugPrint('No templates found, creating defaults');
         await _createDefaultTemplates();
       } else {
-        _habitTemplates = snapshot.docs
-            .map((doc) => HabitTemplate.fromMap({...doc.data(), 'id': doc.id}))
+        final allTemplates = snapshot.docs
+            .map((doc) {
+              try {
+                return HabitTemplate.fromMap({...doc.data(), 'id': doc.id});
+              } catch (e) {
+                debugPrint('Error parsing template ${doc.id}: $e');
+                return null;
+              }
+            })
+            .where((template) => template != null)
+            .cast<HabitTemplate>()
             .toList();
+
+        _habitTemplates = allTemplates
+            .where((template) => !template.deleted)
+            .toList();
+
+        debugPrint(
+          'Loaded ${allTemplates.length} total templates, ${_habitTemplates.length} active templates',
+        );
       }
     } catch (e) {
       _habitTemplates = _getDefaultTemplates();
@@ -173,19 +211,35 @@ class HabitService extends ChangeNotifier {
   Future<void> _createDefaultTemplates() async {
     try {
       final defaultTemplates = _getDefaultTemplates();
-      final batch = _firestore.batch();
+      debugPrint(
+        'Creating ${defaultTemplates.length} default templates for user: $_userId',
+      );
+
+      final createdTemplates = <HabitTemplate>[];
 
       for (final template in defaultTemplates) {
-        final docRef = _firestore
-            .collection('habit_templates')
-            .doc(template.id);
+        try {
+          // Usar add() para generar IDs automáticos únicos
+          final docRef = await _firestore
+              .collection('habit_templates')
+              .add(template.toMap());
 
-        batch.set(docRef, template.toMap());
+          final createdTemplate = template.copyWith(id: docRef.id);
+          createdTemplates.add(createdTemplate);
+          debugPrint(
+            'Successfully created template: ${template.titulo} with ID: ${docRef.id}',
+          );
+        } catch (e) {
+          debugPrint(
+            'Error creating individual template ${template.titulo}: $e',
+          );
+        }
       }
 
-      await batch.commit();
-      _habitTemplates = defaultTemplates;
+      _habitTemplates = createdTemplates;
+      debugPrint('Created ${createdTemplates.length} templates successfully');
     } catch (e) {
+      debugPrint('Error in _createDefaultTemplates: $e');
       _habitTemplates = _getDefaultTemplates();
     }
   }
@@ -194,7 +248,7 @@ class HabitService extends ChangeNotifier {
   Future<void> _loadDailyHabits(DateTime date) async {
     try {
       final normalizedDate = DateTime(date.year, date.month, date.day);
-      
+
       final snapshot = await _firestore
           .collection('habits')
           .where('idUser', isEqualTo: _userId)
@@ -224,17 +278,21 @@ class HabitService extends ChangeNotifier {
           .collection('habits')
           .where('idUser', isEqualTo: _userId)
           .get();
-      
+
       if (snapshot.docs.isNotEmpty) {
         DateTime? oldestDate;
-        
+
         for (final doc in snapshot.docs) {
           try {
             final data = doc.data();
             final timestamp = data['date'] as Timestamp;
             final habitDate = timestamp.toDate();
-            final normalizedDate = DateTime(habitDate.year, habitDate.month, habitDate.day);
-            
+            final normalizedDate = DateTime(
+              habitDate.year,
+              habitDate.month,
+              habitDate.day,
+            );
+
             if (oldestDate == null || normalizedDate.isBefore(oldestDate)) {
               oldestDate = normalizedDate;
             }
@@ -242,12 +300,11 @@ class HabitService extends ChangeNotifier {
             // Ignorar documentos con fechas inválidas
           }
         }
-        
+
         _oldestHabitDate = oldestDate ?? DateTime.now();
       } else {
         _oldestHabitDate = DateTime.now();
       }
-      
     } catch (e) {
       _oldestHabitDate = DateTime.now();
     }
@@ -256,46 +313,62 @@ class HabitService extends ChangeNotifier {
   // Generar datos legacy para compatibilidad
   void _generateLegacyHabitsData() {
     try {
+      debugPrint(
+        'Generating legacy data. Daily habits: ${_dailyHabits.length}, Templates: ${_habitTemplates.length}',
+      );
+
       if (_dailyHabits.isEmpty) {
         _habits = [];
+        debugPrint('No daily habits found, habits list will be empty');
         return;
       }
-      
-      _habits = _dailyHabits.map((habit) {
-        HabitTemplate? template;
-        try {
-          template = _habitTemplates.firstWhere((t) => t.id == habit.idTemplate);
-        } catch (e) {
-          template = null;
-        }
-        
-        if (template == null) return null;
-        
-        if (template.deleted) {
-          final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-          final habitDate = DateTime(habit.date.year, habit.date.month, habit.date.day);
-          
-          if (habitDate.isAfter(today) || habitDate.isAtSameMomentAs(today)) {
-            return null;
-          }
-        }
-        
-        final progress = template.objetivo > 0 ? (habit.value / template.objetivo).clamp(0.0, 1.0) : 0.0;
-        
-        return {
-          'id': template.id,
-          'habitId': habit.id,
-          'name': template.titulo,
-          'icon': '📝',
-          'current': habit.value.round(),
-          'increment': template.increment,
-          'objetivo': template.objetivo,
-          'progress': progress,
-          'category': template.category,
-          'color': '#6B7280',
-        };
-      }).whereType<Map<String, dynamic>>().toList();
+
+      _habits = _dailyHabits
+          .map((habit) {
+            HabitTemplate? template;
+            try {
+              template = _habitTemplates.firstWhere(
+                (t) => t.id == habit.idTemplate,
+              );
+            } catch (e) {
+              template = null;
+            }
+
+            if (template == null) return null;
+
+            // Los templates eliminados ya están filtrados al cargar
+            if (template.deleted) {
+              return null;
+            }
+
+            final progress = template.objetivo > 0
+                ? (habit.value / template.objetivo).clamp(0.0, 1.0)
+                : 0.0;
+
+            return {
+              'id': template.id,
+              'habitId': habit.id,
+              'name': template.titulo,
+              'icon': '📝',
+              'current': habit.value.round(),
+              'increment': template.increment,
+              'objetivo': template.objetivo,
+              'progress': progress,
+              'category': template.category,
+              'color': '#6B7280',
+            };
+          })
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+      debugPrint('Generated ${_habits.length} habits for UI');
+      for (var habit in _habits) {
+        debugPrint(
+          '- ${habit['name']}: ${habit['current']}/${habit['objetivo']}',
+        );
+      }
     } catch (e) {
+      debugPrint('Error in _generateLegacyHabitsData: $e');
       _habits = [];
     }
   }
@@ -306,15 +379,30 @@ class HabitService extends ChangeNotifier {
       final now = DateTime.now();
       final normalizedDate = DateTime(date.year, date.month, date.day);
       final dayOfWeek = date.weekday;
-      
+
+      debugPrint(
+        'Creating missing habits for date: $normalizedDate, day: $dayOfWeek',
+      );
+      debugPrint('Available templates: ${_habitTemplates.length}');
+
       final activeTemplates = _habitTemplates.where((template) {
         return template.activeDays.contains(dayOfWeek) && !template.deleted;
       }).toList();
-      
+
+      debugPrint(
+        'Active templates for day $dayOfWeek: ${activeTemplates.length}',
+      );
+
       for (final template in activeTemplates) {
-        final existingHabits = _dailyHabits.where((h) => h.idTemplate == template.id);
-        if (existingHabits.isNotEmpty) continue;
-        
+        final existingHabits = _dailyHabits.where(
+          (h) => h.idTemplate == template.id,
+        );
+        if (existingHabits.isNotEmpty) {
+          debugPrint('Habit already exists for template: ${template.titulo}');
+          continue;
+        }
+
+        debugPrint('Creating new habit for template: ${template.titulo}');
         final habit = Habit(
           id: '',
           idUser: _userId,
@@ -326,18 +414,242 @@ class HabitService extends ChangeNotifier {
         );
 
         try {
+          debugPrint(
+            'Attempting to create habit for template: ${template.titulo}',
+          );
+          debugPrint('Habit data: ${habit.toMap()}');
+
           final docRef = await _firestore
               .collection('habits')
               .add(habit.toMap());
 
           final createdHabit = habit.copyWith(id: docRef.id);
           _dailyHabits.add(createdHabit);
+          debugPrint(
+            'Successfully created habit: ${createdHabit.id} for template: ${template.titulo}',
+          );
         } catch (e) {
-          // Error creating habit, skip
+          debugPrint(
+            'Error creating habit for template ${template.titulo}: $e',
+          );
+          debugPrint('Stack trace: ${StackTrace.current}');
         }
       }
     } catch (e) {
       // Error creating missing habits
+    }
+  }
+
+  // Verificar conectividad con Firebase
+  Future<void> testFirebaseConnection() async {
+    try {
+      debugPrint('Testing Firebase connection...');
+      debugPrint('User ID: $_userId');
+      debugPrint('User authenticated: ${_auth.currentUser != null}');
+      debugPrint('User email: ${_auth.currentUser?.email}');
+
+      // Intentar una escritura simple para probar permisos
+      final testDoc = await _firestore.collection('test').add({
+        'timestamp': FieldValue.serverTimestamp(),
+        'userId': _userId,
+      });
+
+      debugPrint('Test document created: ${testDoc.id}');
+
+      // Limpiar documento de prueba
+      await testDoc.delete();
+      debugPrint('Test document deleted');
+
+      debugPrint('Firebase connection test passed');
+    } catch (e) {
+      debugPrint('Firebase connection test failed: $e');
+      debugPrint('Stack trace: ${StackTrace.current}');
+    }
+  }
+
+  // Restaurar hábitos desde copia de seguridad
+  Future<int> restoreHabitsFromBackup(List habitsData) async {
+    if (_userId.isEmpty) {
+      debugPrint('Cannot restore habits: user ID is empty');
+      return 0;
+    }
+
+    int restoredCount = 0;
+    final batch = _firestore.batch();
+
+    try {
+      debugPrint('Starting habit restoration for ${habitsData.length} habits');
+
+      for (final habitData in habitsData) {
+        if (habitData is! Map<String, dynamic>) continue;
+
+        try {
+          String titulo = '';
+          Map<String, dynamic> templateData = {};
+
+          // Determinar el formato de los datos
+          if (habitData['template'] != null) {
+            // Formato con template anidado
+            templateData = habitData['template'] as Map<String, dynamic>;
+            titulo = templateData['titulo'] ?? 'Hábito restaurado';
+          } else if (habitData.containsKey('titulo') ||
+              habitData.containsKey('name')) {
+            // Formato directo (datos del hábito)
+            titulo =
+                habitData['titulo'] ?? habitData['name'] ?? 'Hábito restaurado';
+            templateData = habitData;
+          } else {
+            debugPrint('Skipping habit data without title');
+            continue;
+          }
+
+          // Verificar si el template ya existe
+          final existingTemplate = _habitTemplates.any(
+            (t) => t.titulo == titulo && t.userId == _userId,
+          );
+
+          if (!existingTemplate) {
+            // Crear nuevo template
+            final templateRef = _firestore.collection('habit_templates').doc();
+            final newTemplate = {
+              'userId': _userId,
+              'titulo': titulo,
+              'description': templateData['description'] ?? '',
+              'type': templateData['type'] ?? 'count',
+              'objetivo': templateData['objetivo'] ?? templateData['goal'] ?? 1,
+              'increment': templateData['increment'] ?? 1,
+              'category': templateData['category'] ?? 'General',
+              'activeDays': templateData['activeDays'] ?? [1, 2, 3, 4, 5, 6, 7],
+              'deleted': false,
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            };
+
+            batch.set(templateRef, newTemplate);
+            debugPrint('Added template to batch: $titulo');
+            restoredCount++;
+          } else {
+            debugPrint('Template already exists: $titulo');
+          }
+        } catch (e) {
+          debugPrint('Error processing habit data: $e');
+        }
+      }
+
+      if (restoredCount > 0) {
+        await batch.commit();
+        debugPrint('Batch committed successfully');
+
+        // Recargar datos después de la restauración
+        await forceReload();
+      }
+
+      debugPrint(
+        'Habit restoration completed. Restored: $restoredCount habits',
+      );
+      return restoredCount;
+    } catch (e) {
+      debugPrint('Error restoring habits: $e');
+      return 0;
+    }
+  }
+
+  // Validar acceso específico a colecciones de hábitos
+  Future<void> validateHabitCollections() async {
+    try {
+      debugPrint('Validating habit collections access...');
+
+      // Test habit_templates collection
+      debugPrint('Testing habit_templates collection...');
+      final templatesQuery = await _firestore
+          .collection('habit_templates')
+          .where('userId', isEqualTo: _userId)
+          .limit(1)
+          .get();
+      debugPrint(
+        'habit_templates query successful, docs: ${templatesQuery.docs.length}',
+      );
+
+      // Test habits collection
+      debugPrint('Testing habits collection...');
+      final habitsQuery = await _firestore
+          .collection('habits')
+          .where('idUser', isEqualTo: _userId)
+          .limit(1)
+          .get();
+      debugPrint('habits query successful, docs: ${habitsQuery.docs.length}');
+
+      // Test creating a habit template
+      debugPrint('Testing habit template creation...');
+      final testTemplate = {
+        'userId': _userId,
+        'titulo': 'Test Template',
+        'description': 'Test description',
+        'type': 'count',
+        'objetivo': 1,
+        'increment': 1,
+        'category': 'Test',
+        'activeDays': [1, 2, 3, 4, 5, 6, 7],
+        'deleted': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final testTemplateDoc = await _firestore
+          .collection('habit_templates')
+          .add(testTemplate);
+      debugPrint('Test template created: ${testTemplateDoc.id}');
+
+      // Test creating a habit
+      debugPrint('Testing habit creation...');
+      final testHabit = {
+        'idUser': _userId,
+        'idTemplate': testTemplateDoc.id,
+        'date': Timestamp.fromDate(DateTime.now()),
+        'value': 0.0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final testHabitDoc = await _firestore.collection('habits').add(testHabit);
+      debugPrint('Test habit created: ${testHabitDoc.id}');
+
+      // Clean up test documents
+      await testTemplateDoc.delete();
+      await testHabitDoc.delete();
+      debugPrint('Test documents cleaned up');
+
+      debugPrint('All habit collection validations passed!');
+    } catch (e) {
+      debugPrint('Habit collections validation failed: $e');
+      debugPrint('Stack trace: ${StackTrace.current}');
+    }
+  }
+
+  // Forzar recarga completa de datos
+  Future<void> forceReload() async {
+    if (_userId.isEmpty) return;
+
+    debugPrint('Forcing complete data reload');
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // Limpiar datos locales
+      _habitTemplates.clear();
+      _dailyHabits.clear();
+      _habits.clear();
+
+      // Recargar todo desde Firebase
+      await _loadHabitTemplates();
+      await _loadDailyHabits(_selectedDate);
+      await _createMissingDailyHabits(_selectedDate);
+      _generateLegacyHabitsData();
+
+      debugPrint('Force reload complete. Habits: ${_habits.length}');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -347,25 +659,30 @@ class HabitService extends ChangeNotifier {
     if (_dailyHabits.isNotEmpty) {
       await _updateDailyProgress(_selectedDate);
     }
-    
+
     _selectedDate = newDate;
-    
+
     // Cargar hábitos existentes del día
     await _loadDailyHabits(_selectedDate);
-    
+
     // Crear hábitos faltantes para templates activos en este día
     await _createMissingDailyHabits(_selectedDate);
-    
+
     // Regenerar datos para la UI
     _generateLegacyHabitsData();
     notifyListeners();
   }
 
   // Crear hábito diario si no existe
-  Future<void> _createDailyHabitIfNotExists(String templateId, DateTime date) async {
+  Future<void> _createDailyHabitIfNotExists(
+    String templateId,
+    DateTime date,
+  ) async {
     Habit? existingHabit;
     try {
-      existingHabit = _dailyHabits.firstWhere((h) => h.idTemplate == templateId);
+      existingHabit = _dailyHabits.firstWhere(
+        (h) => h.idTemplate == templateId,
+      );
     } catch (e) {
       existingHabit = null;
     }
@@ -373,7 +690,7 @@ class HabitService extends ChangeNotifier {
     if (existingHabit == null) {
       final now = DateTime.now();
       final normalizedDate = DateTime(date.year, date.month, date.day);
-      
+
       final newHabit = Habit(
         id: '',
         idUser: _userId,
@@ -401,7 +718,10 @@ class HabitService extends ChangeNotifier {
   }
 
   // Actualizar template de hábito (para pantalla de edición)
-  Future<void> updateHabitTemplate(String id, Map<String, dynamic> updates) async {
+  Future<void> updateHabitTemplate(
+    String id,
+    Map<String, dynamic> updates,
+  ) async {
     try {
       final templateIndex = _habitTemplates.indexWhere((t) => t.id == id);
       if (templateIndex == -1) {
@@ -411,7 +731,7 @@ class HabitService extends ChangeNotifier {
       }
 
       final currentTemplate = _habitTemplates[templateIndex];
-      
+
       if (_userId.isNotEmpty) {
         try {
           final docSnapshot = await _firestore
@@ -458,7 +778,6 @@ class HabitService extends ChangeNotifier {
       _habitTemplates[templateIndex] = updatedTemplate;
       _generateLegacyHabitsData();
       notifyListeners();
-      
     } catch (e) {
       _error = 'Error al actualizar template de hábito: $e';
       notifyListeners();
@@ -469,7 +788,7 @@ class HabitService extends ChangeNotifier {
     try {
       final now = DateTime.now();
       final templateId = DateTime.now().millisecondsSinceEpoch.toString();
-      
+
       final newTemplate = HabitTemplate(
         id: templateId,
         userId: _userId,
@@ -479,7 +798,11 @@ class HabitService extends ChangeNotifier {
         objetivo: habitData['target'] ?? 1,
         increment: habitData['increment'] ?? 1,
         category: habitData['categoryName'] ?? 'General',
-        activeDays: (habitData['activeDays'] as List<dynamic>?)?.map((e) => e as int).toList() ?? [1, 2, 3, 4, 5, 6, 7],
+        activeDays:
+            (habitData['activeDays'] as List<dynamic>?)
+                ?.map((e) => e as int)
+                .toList() ??
+            [1, 2, 3, 4, 5, 6, 7],
         createdAt: now,
         updatedAt: now,
       );
@@ -492,15 +815,14 @@ class HabitService extends ChangeNotifier {
       }
 
       _habitTemplates.add(newTemplate);
-      
+
       final selectedDayOfWeek = _selectedDate.weekday;
       if (newTemplate.activeDays.contains(selectedDayOfWeek)) {
         await _createDailyHabitIfNotExists(templateId, _selectedDate);
       }
-      
+
       _generateLegacyHabitsData();
       notifyListeners();
-      
     } catch (e) {
       _error = 'Error al agregar hábito: $e';
       notifyListeners();
@@ -514,10 +836,7 @@ class HabitService extends ChangeNotifier {
     try {
       final habitIndex = _dailyHabits.indexWhere((h) => h.id == id);
       if (habitIndex != -1) {
-        await _firestore
-            .collection('habits')
-            .doc(id)
-            .update({
+        await _firestore.collection('habits').doc(id).update({
           'value': newValue.toDouble(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
@@ -536,14 +855,13 @@ class HabitService extends ChangeNotifier {
       if (legacyHabitIndex != -1) {
         final templateId = id;
         await _createDailyHabitIfNotExists(templateId, _selectedDate);
-        
-        final newHabitIndex = _dailyHabits.indexWhere((h) => h.idTemplate == templateId);
+
+        final newHabitIndex = _dailyHabits.indexWhere(
+          (h) => h.idTemplate == templateId,
+        );
         if (newHabitIndex != -1) {
           final habitId = _dailyHabits[newHabitIndex].id;
-          await _firestore
-              .collection('habits')
-              .doc(habitId)
-              .update({
+          await _firestore.collection('habits').doc(habitId).update({
             'value': newValue.toDouble(),
             'updatedAt': FieldValue.serverTimestamp(),
           });
@@ -569,6 +887,10 @@ class HabitService extends ChangeNotifier {
         'deleted': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Recargar templates desde Firebase para reflejar el cambio
+      await _loadHabitTemplates();
+      await _loadDailyHabits(_selectedDate);
       _generateLegacyHabitsData();
       notifyListeners();
     } catch (e) {
@@ -576,6 +898,7 @@ class HabitService extends ChangeNotifier {
       notifyListeners();
     }
   }
+
   // Método para restaurar un hábito eliminado (opcional)
   Future<void> restoreHabit(String habitId) async {
     try {
@@ -583,7 +906,7 @@ class HabitService extends ChangeNotifier {
         'deleted': false,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       _generateLegacyHabitsData();
       await _createMissingDailyHabits(_selectedDate);
       notifyListeners();
@@ -615,21 +938,23 @@ class HabitService extends ChangeNotifier {
     final int incrementValue = habit['increment'] ?? 1;
 
     if (currentValue > 0) {
-      final newValue = (currentValue - incrementValue).clamp(0, double.infinity).toInt();
+      final newValue = (currentValue - incrementValue)
+          .clamp(0, double.infinity)
+          .toInt();
       updateHabit(habit['habitId'], newValue);
     }
   }
+
   double get overallProgress {
     if (_habits.isEmpty) return 0.0;
-    final totalProgress = _habits.fold(
-      0.0,
-      (total, habit) {
-        final current = (habit['current'] ?? 0).toDouble();
-        final objetivo = (habit['objetivo'] ?? 1).toDouble();
-        final progress = objetivo > 0 ? (current / objetivo).clamp(0.0, 1.0) : 0.0;
-        return total + progress;
-      },
-    );
+    final totalProgress = _habits.fold(0.0, (total, habit) {
+      final current = (habit['current'] ?? 0).toDouble();
+      final objetivo = (habit['objetivo'] ?? 1).toDouble();
+      final progress = objetivo > 0
+          ? (current / objetivo).clamp(0.0, 1.0)
+          : 0.0;
+      return total + progress;
+    });
     return totalProgress / _habits.length;
   }
 
@@ -637,14 +962,14 @@ class HabitService extends ChangeNotifier {
   /// Obtiene el total de templates de hábitos activos del usuario
   Future<int> getTotalActiveTemplates() async {
     if (_userId.isEmpty) return 0;
-    
+
     try {
       final snapshot = await _firestore
           .collection('habit_templates')
           .where('userId', isEqualTo: _userId)
           .where('deleted', isEqualTo: false)
           .get();
-      
+
       return snapshot.docs.length;
     } catch (e) {
       debugPrint('Error getting total templates: $e');
@@ -655,24 +980,24 @@ class HabitService extends ChangeNotifier {
   /// Obtiene el progreso general actual basado en los hábitos del día
   Future<double> getCurrentOverallProgress() async {
     if (_userId.isEmpty) return 0.0;
-    
+
     try {
       final today = DateTime.now();
       final normalizedToday = DateTime(today.year, today.month, today.day);
-      
+
       // Obtener hábitos del día actual
       final habits = await _loadHabitsForDate(normalizedToday);
-      
+
       if (habits.isEmpty) {
         return 0.0;
       }
-      
+
       // Calcular progreso promedio
       double totalProgress = 0.0;
       for (final habit in habits) {
         totalProgress += habit.value.clamp(0.0, 1.0);
       }
-      
+
       return totalProgress / habits.length;
     } catch (e) {
       debugPrint('Error calculating current overall progress: $e');
@@ -717,7 +1042,7 @@ class HabitService extends ChangeNotifier {
 
     try {
       final normalizedDate = DateTime(date.year, date.month, date.day);
-      
+
       // Buscar en la colección daily_progress
       final snapshot = await _firestore
           .collection('daily_progress')
@@ -847,9 +1172,7 @@ class HabitService extends ChangeNotifier {
       if (_userId.isNotEmpty) {
         final batch = _firestore.batch();
         for (final habit in _dailyHabits) {
-          final docRef = _firestore
-              .collection('habits')
-              .doc(habit.id);
+          final docRef = _firestore.collection('habits').doc(habit.id);
           batch.update(docRef, {
             'value': 0.0,
             'updatedAt': FieldValue.serverTimestamp(),
@@ -872,9 +1195,17 @@ class HabitService extends ChangeNotifier {
   Future<double> getDayProgress(DateTime date) async {
     try {
       final normalizedDate = DateTime(date.year, date.month, date.day);
-      final selectedNormalized = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      if (normalizedDate.isAtSameMomentAs(selectedNormalized) && _habits.isNotEmpty) {
-        final totalProgress = _habits.fold(0.0, (sum, habit) => sum + (habit['progress'] as double));
+      final selectedNormalized = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+      );
+      if (normalizedDate.isAtSameMomentAs(selectedNormalized) &&
+          _habits.isNotEmpty) {
+        final totalProgress = _habits.fold(
+          0.0,
+          (total, habit) => total + (habit['progress'] as double),
+        );
         return totalProgress / _habits.length;
       }
       final dayHabits = await _loadHabitsForDate(normalizedDate);
@@ -883,21 +1214,31 @@ class HabitService extends ChangeNotifier {
       }
       double totalProgress = 0.0;
       int validHabits = 0;
-      
+
       for (final habit in dayHabits) {
         try {
           final template = _habitTemplates.firstWhere(
             (t) => t.id == habit.idTemplate,
-            orElse: () => throw 'Template not found'
+            orElse: () => throw 'Template not found',
           );
           if (template.deleted) {
-            final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-            final habitDate = DateTime(habit.date.year, habit.date.month, habit.date.day);
+            final today = DateTime(
+              DateTime.now().year,
+              DateTime.now().month,
+              DateTime.now().day,
+            );
+            final habitDate = DateTime(
+              habit.date.year,
+              habit.date.month,
+              habit.date.day,
+            );
             if (habitDate.isAfter(today) || habitDate.isAtSameMomentAs(today)) {
               continue;
             }
           }
-          final progress = template.objetivo > 0 ? (habit.value / template.objetivo).clamp(0.0, 1.0) : 0.0;
+          final progress = template.objetivo > 0
+              ? (habit.value / template.objetivo).clamp(0.0, 1.0)
+              : 0.0;
           totalProgress += progress;
           validHabits++;
         } catch (e) {
@@ -909,16 +1250,18 @@ class HabitService extends ChangeNotifier {
       return 0.0;
     }
   }
+
   /// Obtiene la fecha del hábito más antiguo para optimizar el rango del calendario
   DateTime getOldestHabitDate() {
     // Si ya se calculó la fecha más antigua, usarla
     if (_oldestHabitDate != null) {
       return _oldestHabitDate!;
     }
-    
+
     // Fallback: usar fecha de hoy si no hay hábitos históricos
     return DateTime.now();
   }
+
   /// Carga hábitos para una fecha específica (sin cambiar _selectedDate)
   Future<List<Habit>> _loadHabitsForDate(DateTime date) async {
     if (_userId.isEmpty) return [];
@@ -945,6 +1288,7 @@ class HabitService extends ChangeNotifier {
       return [];
     }
   }
+
   // ===== MÉTODOS PARA DAILY PROGRESS =====
   /// Actualiza el progreso diario en la colección daily_progress
   Future<void> _updateDailyProgress(DateTime date) async {
@@ -954,14 +1298,14 @@ class HabitService extends ChangeNotifier {
       double totalProgress = 0.0;
       int totalHabits = 0;
       int completedHabits = 0;
-      
+
       for (final habit in _dailyHabits) {
         final template = _habitTemplates.firstWhere(
           (t) => t.id == habit.idTemplate && !t.deleted,
-          orElse: () => throw 'Template not found'
+          orElse: () => throw 'Template not found',
         );
-        final progress = template.objetivo > 0 
-            ? (habit.value / template.objetivo).clamp(0.0, 1.0) 
+        final progress = template.objetivo > 0
+            ? (habit.value / template.objetivo).clamp(0.0, 1.0)
             : 0.0;
         totalProgress += progress;
         totalHabits++;
@@ -969,8 +1313,11 @@ class HabitService extends ChangeNotifier {
           completedHabits++;
         }
       }
-      final overallProgress = totalHabits > 0 ? totalProgress / totalHabits : 0.0;
-      final progressId = '${_userId}_${normalizedDate.toIso8601String().split('T')[0]}';
+      final overallProgress = totalHabits > 0
+          ? totalProgress / totalHabits
+          : 0.0;
+      final progressId =
+          '${_userId}_${normalizedDate.toIso8601String().split('T')[0]}';
       final now = DateTime.now();
       final dailyProgress = DailyProgress(
         id: progressId,
@@ -990,10 +1337,14 @@ class HabitService extends ChangeNotifier {
       // Error updating daily progress
     }
   }
+
   /// Obtiene progresos diarios para un rango de fechas (para calendario)
-  Future<Map<String, double>> getDailyProgressRange(DateTime startDate, DateTime endDate) async {
+  Future<Map<String, double>> getDailyProgressRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
     if (_userId.isEmpty) return {};
-    
+
     try {
       final start = DateTime(startDate.year, startDate.month, startDate.day);
       final end = DateTime(endDate.year, endDate.month, endDate.day);
@@ -1002,14 +1353,15 @@ class HabitService extends ChangeNotifier {
           .where('idUser', isEqualTo: _userId)
           .get();
       final progressMap = <String, double>{};
-      
+
       for (final doc in querySnapshot.docs) {
         try {
           final progress = DailyProgress.fromMap({...doc.data(), 'id': doc.id});
           if (progress.date.isAfter(end) || progress.date.isBefore(start)) {
             continue;
           }
-          final dateKey = '${progress.date.year}-${progress.date.month}-${progress.date.day}';
+          final dateKey =
+              '${progress.date.year}-${progress.date.month}-${progress.date.day}';
           progressMap[dateKey] = progress.overallProgress;
         } catch (e) {
           // Skip invalid documents
@@ -1018,15 +1370,21 @@ class HabitService extends ChangeNotifier {
       return progressMap;
     } catch (e) {
       final progressMap = <String, double>{};
-      DateTime currentDate = DateTime(startDate.year, startDate.month, startDate.day);
-      final endDate_norm = DateTime(endDate.year, endDate.month, endDate.day);
+      DateTime currentDate = DateTime(
+        startDate.year,
+        startDate.month,
+        startDate.day,
+      );
+      final enddateNorm = DateTime(endDate.year, endDate.month, endDate.day);
 
-      while (currentDate.isBefore(endDate_norm) || currentDate.isAtSameMomentAs(endDate_norm)) {
+      while (currentDate.isBefore(enddateNorm) ||
+          currentDate.isAtSameMomentAs(enddateNorm)) {
         final progress = await getDayProgress(currentDate);
-        final dateKey = '${currentDate.year}-${currentDate.month}-${currentDate.day}';
+        final dateKey =
+            '${currentDate.year}-${currentDate.month}-${currentDate.day}';
         progressMap[dateKey] = progress;
         currentDate = currentDate.add(const Duration(days: 1));
-        
+
         if (progressMap.length > 90) break;
       }
       return progressMap;
