@@ -6,7 +6,7 @@ class UserProfile {
   final String firstName;
   final String lastName;
   final String email;
-  final int age;
+  final DateTime? dateOfBirth;
   final String bio;
   final String goals;
   final String? photoUrl;
@@ -17,7 +17,7 @@ class UserProfile {
     required this.firstName,
     required this.lastName,
     required this.email,
-    this.age = 0,
+    this.dateOfBirth,
     this.bio = '',
     this.goals = '',
     this.photoUrl,
@@ -26,13 +26,44 @@ class UserProfile {
 
   String get fullName => '$firstName $lastName'.trim();
 
+  /// Edad calculada a partir de la fecha de nacimiento. Devuelve 0 si no hay fecha.
+  int get age {
+    if (dateOfBirth == null) return 0;
+    final now = DateTime.now();
+    int years = now.year - dateOfBirth!.year;
+    final birthdayThisYear = DateTime(
+      now.year,
+      dateOfBirth!.month,
+      dateOfBirth!.day,
+    );
+    if (now.isBefore(birthdayThisYear)) years -= 1;
+    return years;
+  }
+
   factory UserProfile.fromMap(Map<String, dynamic> map, String uid) {
+    DateTime? dob;
+    try {
+      final dobValue = map['dateOfBirth'];
+      if (dobValue is Timestamp) {
+        dob = dobValue.toDate();
+      } else if (dobValue is String) {
+        dob = DateTime.tryParse(dobValue);
+      } else if (dobValue is Map && dobValue['_seconds'] != null) {
+        // Fallback for firebaselike map
+        dob = DateTime.fromMillisecondsSinceEpoch(
+          (dobValue['_seconds'] as int) * 1000,
+        );
+      }
+    } catch (e) {
+      dob = null;
+    }
+
     return UserProfile(
       uid: uid,
       firstName: map['firstName'] ?? '',
       lastName: map['lastName'] ?? '',
       email: map['email'] ?? '',
-      age: map['age'] ?? 0,
+      dateOfBirth: dob,
       bio: map['bio'] ?? '',
       goals: map['goals'] ?? '',
       photoUrl: map['photoUrl'],
@@ -45,7 +76,9 @@ class UserProfile {
       'firstName': firstName,
       'lastName': lastName,
       'email': email,
-      'age': age,
+      'dateOfBirth': dateOfBirth != null
+          ? Timestamp.fromDate(dateOfBirth!)
+          : null,
       'bio': bio,
       'goals': goals,
       'photoUrl': photoUrl,

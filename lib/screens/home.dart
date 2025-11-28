@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../screens/add_habit.dart';
+import '../screens/habit_detail_screen.dart';
 import '../widgets/overall_progress_card.dart';
 import '../widgets/days_navbar.dart';
 import '../widgets/habit_card.dart';
@@ -124,6 +125,34 @@ class _HomePageState extends State<HomePage> {
     habitService.decrementHabit(habit['habitId']);
   }
 
+  // Método para mostrar los detalles del hábito
+  void _showHabitDetail(Map<String, dynamic> habit) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => HabitDetailScreen(habit: habit)),
+    );
+  }
+
+  // Método para toggle del hábito (completar/resetear)
+  void _toggleHabit(int index) {
+    final habitService = Provider.of<HabitService>(context, listen: false);
+    final habitsList = habitService.habits;
+    if (index >= habitsList.length) return;
+
+    final habit = habitsList[index];
+    final current = (habit['current'] ?? 0).toDouble();
+    final objetivo = (habit['objetivo'] ?? 1).toDouble();
+    final progress = objetivo > 0 ? (current / objetivo).clamp(0.0, 1.0) : 0.0;
+
+    if (progress >= 1.0) {
+      // Si está completo, resetear a 0
+      habitService.updateHabit(habit['habitId'], 0);
+    } else {
+      // Si no está completo, completar al 100%
+      habitService.updateHabit(habit['habitId'], objetivo.toInt());
+    }
+  }
+
   String _getFormattedDate(DateTime date) {
     final weekdays = [
       "Lunes",
@@ -158,7 +187,10 @@ class _HomePageState extends State<HomePage> {
   List<DateTime> _getWeekDays() {
     final today = DateTime.now();
     // Generar últimos 7 días con hoy al final (derecha)
-    return List.generate(7, (index) => today.subtract(Duration(days: 6 - index)));
+    return List.generate(
+      7,
+      (index) => today.subtract(Duration(days: 6 - index)),
+    );
   }
 
   @override
@@ -242,12 +274,28 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () => habitService.initializeHabits(),
                     child: const Text('Reintentar'),
                   ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () => habitService.forceReload(),
+                    child: const Text('Recarga Forzada'),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () => habitService.testFirebaseConnection(),
+                    child: const Text('Test Firebase'),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () => habitService.validateHabitCollections(),
+                    child: const Text('Validar Hábitos'),
+                  ),
                 ],
               ),
             );
           }
 
           final habits = habitService.habits;
+          debugPrint('UI Consumer: habits count = ${habits.length}');
 
           return Column(
             children: [
@@ -260,7 +308,10 @@ class _HomePageState extends State<HomePage> {
                     selectedDate = date;
                   });
                   // Cargar hábitos del día seleccionado
-                  final habitService = Provider.of<HabitService>(context, listen: false);
+                  final habitService = Provider.of<HabitService>(
+                    context,
+                    listen: false,
+                  );
                   await habitService.changeSelectedDate(date);
                 },
               ),
@@ -301,10 +352,17 @@ class _HomePageState extends State<HomePage> {
                           itemCount: habits.length,
                           itemBuilder: (context, index) {
                             final habit = habits[index];
+                            debugPrint(
+                              'Building habit card $index: ${habit['name']}',
+                            );
+
                             final current = (habit['current'] ?? 0).toDouble();
-                            final objetivo = (habit['objetivo'] ?? 1).toDouble();
-                            final progress = objetivo > 0 ? (current / objetivo).clamp(0.0, 1.0) : 0.0;
-                            
+                            final objetivo = (habit['objetivo'] ?? 1)
+                                .toDouble();
+                            final progress = objetivo > 0
+                                ? (current / objetivo).clamp(0.0, 1.0)
+                                : 0.0;
+
                             return HabitCard(
                               name: habit['name'] ?? 'Hábito',
                               progress: progress,
@@ -312,6 +370,9 @@ class _HomePageState extends State<HomePage> {
                               onDecrement: () => _decrementHabit(index),
                               onLongPress: () => _deleteHabit(index),
                               onEdit: () => _editHabit(index),
+                              onDelete: () => _deleteHabit(index),
+                              onTap: () => _showHabitDetail(habit),
+                              onToggle: () => _toggleHabit(index),
                             );
                           },
                         ),

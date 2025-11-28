@@ -29,7 +29,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
 
   String _selectedType = 'count';
   Category? _selectedCategory;
-  
+
   // Días de la semana seleccionados (1=Lunes, 7=Domingo)
   Set<int> _selectedDays = {1, 2, 3, 4, 5, 6, 7}; // Por defecto todos los días
 
@@ -628,7 +628,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
   Widget _buildFrequencySection() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     final dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
     return Card(
@@ -654,7 +654,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
               children: List.generate(7, (index) {
                 final dayNumber = index + 1;
                 final isSelected = _selectedDays.contains(dayNumber);
-                
+
                 return GestureDetector(
                   onTap: () {
                     setState(() {
@@ -672,11 +672,15 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                       shape: BoxShape.circle,
                       color: isSelected
                           ? Provider.of<ThemeProvider>(context).primaryColor
-                          : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                          : (isDark
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade200),
                       border: Border.all(
                         color: isSelected
                             ? Provider.of<ThemeProvider>(context).primaryColor
-                            : (isDark ? Colors.grey.shade600 : Colors.grey.shade300),
+                            : (isDark
+                                  ? Colors.grey.shade600
+                                  : Colors.grey.shade300),
                         width: 1,
                       ),
                     ),
@@ -686,7 +690,9 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                         style: TextStyle(
                           color: isSelected
                               ? Colors.white
-                              : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                              : (isDark
+                                    ? Colors.grey.shade300
+                                    : Colors.grey.shade700),
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),
@@ -701,10 +707,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   'Selecciona al menos un día',
-                  style: TextStyle(
-                    color: AppColors.error,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: AppColors.error, fontSize: 12),
                 ),
               ),
           ],
@@ -776,9 +779,7 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
       'categoryId': _selectedCategory!.id,
       'categoryName': _selectedCategory!.name,
       'categoryIcon': _selectedCategory!.icon.codePoint,
-      'categoryColor': _selectedCategory!
-          .color
-          .value,
+      'categoryColor': _selectedCategory!.color.value,
       'type': _selectedType,
       'target': int.tryParse(_targetController.text) ?? 1,
       'increment': int.tryParse(_incrementController.text) ?? 1,
