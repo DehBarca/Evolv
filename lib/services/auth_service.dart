@@ -1,133 +1,197 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Configurar Google Sign-In con clientId para web
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: kIsWeb
-        ? '572329223623-6e1fmgtec3kv5spphesp85mgrsvi7lsd.apps.googleusercontent.com'
-        : null,
-  );
-
-  // Stream para escuchar cambios en el estado de autenticación
+  // Stream del usuario actual
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Obtener el usuario actual
+  // Usuario actual
   User? get currentUser => _auth.currentUser;
 
   // Registro con email y contraseña
-  Future<UserCredential?> registerWithEmailAndPassword(
+  Future<User?> registerWithEmailAndPassword(
     String email,
     String password,
     String name,
   ) async {
     try {
-      UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(email: email, password: password);
+      final UserCredential result = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      // Actualizar el nombre del usuario
-      await userCredential.user?.updateDisplayName(name);
-      await userCredential.user?.reload();
+      final User? user = result.user;
 
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+      if (user != null) {
+        // Actualizar el displayName del usuario
+        await user.updateDisplayName(name);
+        await user.reload();
+
+        // Crear documento del usuario en Firestore
+        await _createUserDocument(user, name);
+
+        return user;
+      }
+      return null;
+    } catch (e) {
+      throw Exception(_getAuthErrorMessage(e));
     }
   }
 
-  // Inicio de sesión con email y contraseña
-  Future<UserCredential?> signInWithEmailAndPassword(
+  // Login con email y contraseña
+  Future<User?> signInWithEmailAndPassword(
     String email,
     String password,
   ) async {
     try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      final UserCredential result = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+      return result.user;
+    } catch (e) {
+      throw Exception(_getAuthErrorMessage(e));
+    }
+  }
+
+  // Login con Google
+  Future<User?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) return null;
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential result = await _auth.signInWithCredential(
+        credential,
+      );
+      final User? user = result.user;
+
+      if (user != null) {
+        // Verificar si es un usuario nuevo y crear documento
+        if (result.additionalUserInfo?.isNewUser ?? false) {
+          await _createUserDocument(user, user.displayName ?? 'Usuario');
+        }
+      }
+
+      return user;
+    } catch (e) {
+      throw Exception(_getAuthErrorMessage(e));
+    }
+  }
+
+  // Crear documento del usuario en Firestore
+  Future<void> _createUserDocument(User user, String name) async {
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'name': name,
+        'email': user.email,
+        'photoURL': user.photoURL,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error creating user document: $e');
+    }
+  }
+
+  // Obtener datos del usuario desde Firestore
+  Future<Map<String, dynamic>?> getUserData(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      return doc.data();
+    } catch (e) {
+      debugPrint('Error getting user data: $e');
+      return null;
+    }
+  }
+
+  // Actualizar datos del usuario
+  Future<void> updateUserData(String uid, Map<String, dynamic> data) async {
+    try {
+      await _firestore.collection('users').doc(uid).update(data);
+    } catch (e) {
+      debugPrint('Error updating user data: $e');
     }
   }
 
   // Cerrar sesión
   Future<void> signOut() async {
     try {
-      await _googleSignIn.signOut();
-      await _auth.signOut();
+      await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
     } catch (e) {
-      print('Error al cerrar sesión: $e');
-      // Intentar cerrar sesión solo de Firebase si Google falla
-      await _auth.signOut();
+      throw Exception('Error al cerrar sesión: ${e.toString()}');
     }
   }
 
-  // Inicio de sesión con Google
-  Future<UserCredential?> signInWithGoogle() async {
-    try {
-      // Iniciar el flujo de autenticación de Google
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-      if (googleUser == null) {
-        // El usuario canceló el inicio de sesión
-        throw 'Inicio de sesión cancelado';
-      }
-
-      // Obtener los detalles de autenticación
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // Crear una credencial de Firebase con el token de Google
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // Iniciar sesión en Firebase con la credencial de Google
-      return await _auth.signInWithCredential(credential);
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
-    } catch (e) {
-      throw 'Error al iniciar sesión con Google: ${e.toString()}';
-    }
-  }
-
-  // Recuperar contraseña
+  // Recuperar contraseña - MÉTODO AGREGADO
   Future<void> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+    } catch (e) {
+      throw Exception(_getAuthErrorMessage(e));
     }
   }
 
-  // Manejo de errores de Firebase Auth
-  String _handleAuthException(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'weak-password':
-        return 'La contraseña es muy débil. Debe tener al menos 6 caracteres.';
-      case 'email-already-in-use':
-        return 'Este correo electrónico ya está registrado.';
-      case 'invalid-email':
-        return 'El correo electrónico no es válido.';
-      case 'user-not-found':
-        return 'No existe una cuenta con este correo electrónico.';
-      case 'wrong-password':
-        return 'Contraseña incorrecta.';
-      case 'invalid-credential':
-        return 'Las credenciales no son válidas. Verifica tu correo y contraseña.';
-      case 'user-disabled':
-        return 'Esta cuenta ha sido deshabilitada.';
-      case 'too-many-requests':
-        return 'Demasiados intentos fallidos. Intenta de nuevo más tarde.';
-      case 'operation-not-allowed':
-        return 'Operación no permitida. Contacta al administrador.';
-      default:
-        return 'Error de autenticación: ${e.message ?? "Error desconocido"}';
+  // Enviar email de verificación
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
     }
+  }
+
+  // Obtener nombre del usuario (primero de Firestore, luego de Auth)
+  Future<String> getUserName() async {
+    final user = currentUser;
+    if (user == null) return 'Usuario';
+
+    // Primero intentar obtener desde Firestore
+    final userData = await getUserData(user.uid);
+    if (userData != null && userData['name'] != null) {
+      return userData['name'];
+    }
+
+    // Si no está en Firestore, usar displayName
+    return user.displayName ?? 'Usuario';
+  }
+
+  // Convertir errores de Firebase a mensajes legibles
+  String _getAuthErrorMessage(dynamic error) {
+    if (error is FirebaseAuthException) {
+      switch (error.code) {
+        case 'user-not-found':
+          return 'No se encontró un usuario con ese correo electrónico.';
+        case 'wrong-password':
+          return 'Contraseña incorrecta.';
+        case 'email-already-in-use':
+          return 'Ya existe una cuenta con ese correo electrónico.';
+        case 'weak-password':
+          return 'La contraseña es muy débil.';
+        case 'invalid-email':
+          return 'El correo electrónico no es válido.';
+        case 'too-many-requests':
+          return 'Demasiados intentos. Intenta más tarde.';
+        case 'user-disabled':
+          return 'Esta cuenta ha sido deshabilitada.';
+        default:
+          return 'Error de autenticación: ${error.message}';
+      }
+    }
+    return error.toString();
   }
 }

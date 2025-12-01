@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_constants.dart';
 import '../models/category.dart';
@@ -25,51 +27,50 @@ class _AddHabitScreenState extends State<AddHabitScreen> {
     text: '1',
   );
 
-  String _selectedFrequency = 'Diario';
   String _selectedType = 'count';
   Category? _selectedCategory;
-  TimeOfDay _selectedTime = TimeOfDay.now();
 
-List<Category> _userCategories = [
-  Category(
-    id: 'dummy_salud',
-    name: 'Salud',
-    icon: Icons.favorite,
-    color: Colors.red,
-    userId: 'dummy',
-  ),
-  Category(
-    id: 'dummy_productividad',
-    name: 'Productividad',
-    icon: Icons.work,
-    color: Colors.blue,
-    userId: 'dummy',
-  ),
-  Category(
-    id: 'dummy_bienestar',
-    name: 'Bienestar',
-    icon: Icons.spa,
-    color: Colors.green,
-    userId: 'dummy',
-  ),
-  Category(
-    id: 'dummy_aprendizaje',
-    name: 'Aprendizaje',
-    icon: Icons.school,
-    color: Colors.orange,
-    userId: 'dummy',
-  ),
-  Category(
-    id: 'dummy_ejercicio',
-    name: 'Ejercicio',
-    icon: Icons.fitness_center,
-    color: Colors.purple,
-    userId: 'dummy',
-  ),
-];
+  // Días de la semana seleccionados (1=Lunes, 7=Domingo)
+  Set<int> _selectedDays = {1, 2, 3, 4, 5, 6, 7}; // Por defecto todos los días
+
+  List<Category> _userCategories = [
+    Category(
+      id: 'dummy_salud',
+      name: 'Salud',
+      icon: Icons.favorite,
+      color: Colors.red,
+      userId: 'dummy',
+    ),
+    Category(
+      id: 'dummy_productividad',
+      name: 'Productividad',
+      icon: Icons.work,
+      color: Colors.blue,
+      userId: 'dummy',
+    ),
+    Category(
+      id: 'dummy_bienestar',
+      name: 'Bienestar',
+      icon: Icons.spa,
+      color: Colors.green,
+      userId: 'dummy',
+    ),
+    Category(
+      id: 'dummy_aprendizaje',
+      name: 'Aprendizaje',
+      icon: Icons.school,
+      color: Colors.orange,
+      userId: 'dummy',
+    ),
+    Category(
+      id: 'dummy_ejercicio',
+      name: 'Ejercicio',
+      icon: Icons.fitness_center,
+      color: Colors.orange,
+      userId: 'dummy',
+    ),
+  ];
   bool _isLoadingCategories = true;
-
-  final List<String> _frequencies = ['Diario', 'Semanal', 'Mensual'];
 
   @override
   void initState() {
@@ -79,19 +80,14 @@ List<Category> _userCategories = [
       _nameController.text = widget.habitData!['name'] ?? '';
       _descriptionController.text = widget.habitData!['description'] ?? '';
       _selectedType = widget.habitData!['type'] ?? 'count';
-      _selectedFrequency = widget.habitData!['frequency'] ?? 'Diario';
       _targetController.text = (widget.habitData!['target'] ?? 1).toString();
       _incrementController.text = (widget.habitData!['increment'] ?? 1)
           .toString();
 
-      // Inicializar el tiempo
-      final timeString = widget.habitData!['time'] ?? '09:00';
-      final timeParts = timeString.split(':');
-      if (timeParts.length == 2) {
-        _selectedTime = TimeOfDay(
-          hour: int.tryParse(timeParts[0]) ?? 9,
-          minute: int.tryParse(timeParts[1]) ?? 0,
-        );
+      // Cargar días activos si están disponibles
+      final activeDays = widget.habitData!['activeDays'] as List<dynamic>?;
+      if (activeDays != null) {
+        _selectedDays = activeDays.map((e) => e as int).toSet();
       }
     }
   }
@@ -115,7 +111,7 @@ List<Category> _userCategories = [
             final categoryId = widget.habitData!['categoryId'];
             _selectedCategory = newCategories.firstWhere(
               (cat) => cat.id == categoryId,
-              orElse: () => newCategories.isNotEmpty ? newCategories[0] : null!,
+              orElse: () => newCategories[0],
             );
           } else {
             _selectedCategory = newCategories.isNotEmpty
@@ -166,7 +162,7 @@ List<Category> _userCategories = [
     return Scaffold(
       backgroundColor: isDark
           ? theme.scaffoldBackgroundColor
-          : AppColors.primaryBackground,
+          : Provider.of<ThemeProvider>(context).backgroundColor,
       appBar: AppBar(
         title: Text(
           widget.isEditing ? 'Editar Hábito' : 'Nuevo Hábito',
@@ -178,7 +174,9 @@ List<Category> _userCategories = [
         ),
         backgroundColor: Colors.transparent,
         iconTheme: IconThemeData(
-          color: isDark ? Colors.white : AppColors.primary,
+          color: isDark
+              ? Colors.white
+              : Provider.of<ThemeProvider>(context).primaryColor,
         ),
         elevation: 0,
         actions: [
@@ -189,7 +187,7 @@ List<Category> _userCategories = [
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.action,
+                color: Provider.of<ThemeProvider>(context).primaryColor,
               ),
             ),
           ),
@@ -213,8 +211,6 @@ List<Category> _userCategories = [
             _buildCategorySection(),
             const SizedBox(height: 24),
             _buildFrequencySection(),
-            const SizedBox(height: 24),
-            _buildTimeSection(),
             const SizedBox(height: 32),
             _buildSaveButton(),
           ],
@@ -261,7 +257,9 @@ List<Category> _userCategories = [
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primary),
+                  borderSide: BorderSide(
+                    color: Provider.of<ThemeProvider>(context).primaryColor,
+                  ),
                 ),
                 filled: true,
                 fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
@@ -312,7 +310,9 @@ List<Category> _userCategories = [
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primary),
+                  borderSide: BorderSide(
+                    color: Provider.of<ThemeProvider>(context).primaryColor,
+                  ),
                 ),
                 filled: true,
                 fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
@@ -357,7 +357,9 @@ List<Category> _userCategories = [
                         _selectedType = 'count';
                       });
                     },
-                    selectedColor: AppColors.action.withOpacity(0.3),
+                    selectedColor: Provider.of<ThemeProvider>(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.3),
                     backgroundColor: isDark
                         ? Colors.grey.shade800
                         : Colors.grey.shade200,
@@ -383,7 +385,9 @@ List<Category> _userCategories = [
                         _selectedType = 'time';
                       });
                     },
-                    selectedColor: AppColors.action.withOpacity(0.3),
+                    selectedColor: Provider.of<ThemeProvider>(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.3),
                     backgroundColor: isDark
                         ? Colors.grey.shade800
                         : Colors.grey.shade200,
@@ -448,7 +452,9 @@ List<Category> _userCategories = [
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primary),
+                  borderSide: BorderSide(
+                    color: Provider.of<ThemeProvider>(context).primaryColor,
+                  ),
                 ),
                 filled: true,
                 fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
@@ -501,7 +507,9 @@ List<Category> _userCategories = [
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primary),
+                  borderSide: BorderSide(
+                    color: Provider.of<ThemeProvider>(context).primaryColor,
+                  ),
                 ),
                 filled: true,
                 fillColor: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
@@ -516,6 +524,7 @@ List<Category> _userCategories = [
   Widget _buildCategorySection() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     if (_isLoadingCategories) {
       return Card(
@@ -565,46 +574,50 @@ List<Category> _userCategories = [
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _userCategories
-                  .map(
-                    (category) => ChoiceChip(
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            category.icon,
-                            size: 16,
-                            color: _selectedCategory?.id == category.id
-                                ? Colors.white
-                                : category.color,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(category.name),
-                        ],
-                      ),
-                      selected: _selectedCategory?.id == category.id,
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedCategory = category;
-                        });
-                      },
-                      selectedColor: category.color.withOpacity(0.7),
-                      backgroundColor: isDark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade200,
-                      labelStyle: TextStyle(
+              children: _userCategories.map((category) {
+                final catColor =
+                    (category.color == Colors.orange ||
+                        category.color == AppColors.primary)
+                    ? themeProvider.primaryColor
+                    : category.color;
+
+                return ChoiceChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        category.icon,
+                        size: 16,
                         color: _selectedCategory?.id == category.id
                             ? Colors.white
-                            : (isDark
-                                  ? Colors.grey.shade300
-                                  : Colors.grey.shade700),
-                        fontWeight: _selectedCategory?.id == category.id
-                            ? FontWeight.w600
-                            : FontWeight.normal,
+                            : catColor,
                       ),
-                    ),
-                  )
-                  .toList(),
+                      const SizedBox(width: 4),
+                      Text(category.name),
+                    ],
+                  ),
+                  selected: _selectedCategory?.id == category.id,
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedCategory = category;
+                    });
+                  },
+                  selectedColor: catColor.withValues(alpha: 0.7),
+                  backgroundColor: isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade200,
+                  labelStyle: TextStyle(
+                    color: _selectedCategory?.id == category.id
+                        ? Colors.white
+                        : (isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade700),
+                    fontWeight: _selectedCategory?.id == category.id
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                );
+              }).toList(),
             ),
           ],
         ),
@@ -616,6 +629,8 @@ List<Category> _userCategories = [
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final dayNames = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
@@ -626,103 +641,75 @@ List<Category> _userCategories = [
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Frecuencia',
+              'Días de la semana',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: isDark ? Colors.white : AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Row(
-              children: _frequencies
-                  .map(
-                    (frequency) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ChoiceChip(
-                          label: Text(frequency),
-                          selected: _selectedFrequency == frequency,
-                          onSelected: (selected) {
-                            setState(() {
-                              _selectedFrequency = frequency;
-                            });
-                          },
-                          selectedColor: AppColors.action.withOpacity(0.3),
-                          backgroundColor: isDark
-                              ? Colors.grey.shade800
-                              : Colors.grey.shade200,
-                          labelStyle: TextStyle(
-                            color: _selectedFrequency == frequency
-                                ? Colors.white
-                                : (isDark
-                                      ? Colors.grey.shade300
-                                      : Colors.grey.shade700),
-                            fontWeight: _selectedFrequency == frequency
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(7, (index) {
+                final dayNumber = index + 1;
+                final isSelected = _selectedDays.contains(dayNumber);
+
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedDays.remove(dayNumber);
+                      } else {
+                        _selectedDays.add(dayNumber);
+                      }
+                    });
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isSelected
+                          ? Provider.of<ThemeProvider>(context).primaryColor
+                          : (isDark
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade200),
+                      border: Border.all(
+                        color: isSelected
+                            ? Provider.of<ThemeProvider>(context).primaryColor
+                            : (isDark
+                                  ? Colors.grey.shade600
+                                  : Colors.grey.shade300),
+                        width: 1,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        dayNames[index],
+                        style: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark
+                                    ? Colors.grey.shade300
+                                    : Colors.grey.shade700),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
                     ),
-                  )
-                  .toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTimeSection() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      color: theme.cardColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Recordatorio',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: _selectTime,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
-                      ),
-                    ),
-                    Icon(Icons.access_time, color: AppColors.primary),
-                  ],
+                );
+              }),
+            ),
+            if (_selectedDays.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Selecciona al menos un día',
+                  style: TextStyle(color: AppColors.error, fontSize: 12),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -736,7 +723,7 @@ List<Category> _userCategories = [
       child: ElevatedButton(
         onPressed: _saveHabit,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.action,
+          backgroundColor: Provider.of<ThemeProvider>(context).primaryColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -754,23 +741,21 @@ List<Category> _userCategories = [
     );
   }
 
-  Future<void> _selectTime() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-    );
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
-  }
-
   void _saveHabit() {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Por favor, ingresa un nombre para el hábito'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedDays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Por favor, selecciona al menos un día de la semana'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -787,7 +772,7 @@ List<Category> _userCategories = [
       return;
     }
 
-    // Crear el nuevo hábito
+    // Crear el nuevo hábito template
     final newHabit = {
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
@@ -795,12 +780,10 @@ List<Category> _userCategories = [
       'categoryName': _selectedCategory!.name,
       'categoryIcon': _selectedCategory!.icon.codePoint,
       'categoryColor': _selectedCategory!.color.value,
-      'frequency': _selectedFrequency,
       'type': _selectedType,
       'target': int.tryParse(_targetController.text) ?? 1,
       'increment': int.tryParse(_incrementController.text) ?? 1,
-      'time':
-          '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+      'activeDays': _selectedDays.toList()..sort(), // Lista ordenada de días
       'progress': widget.isEditing
           ? (widget.habitData!['progress'] ?? 0.0)
           : 0.0,

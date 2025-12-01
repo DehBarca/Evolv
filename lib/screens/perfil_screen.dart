@@ -1,591 +1,147 @@
 import 'package:flutter/material.dart';
-import '../models/perfil.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'dart:convert';
 import '../constants/app_constants.dart';
+import '../services/user_profile_service.dart';
+import '../services/habit_service.dart';
+import '../providers/theme_provider.dart';
+import 'edit_profile.dart';
 
-class PerfilScreen extends StatefulWidget {
-  final Perfil? perfil;
-
-  const PerfilScreen({super.key, this.perfil});
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
 
   @override
-  State<PerfilScreen> createState() => _PerfilScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _PerfilScreenState extends State<PerfilScreen> {
-  late String nombre;
-  late String apellidos;
-  late String edad;
-  late String email;
-  late String sobreMi;
-  late String objetivos;
-  late String imagenUrl;
+class _ProfileScreenState extends State<ProfileScreen> {
+  final UserProfileService _profileService = UserProfileService();
 
-  TextEditingController nombreController = TextEditingController();
-  TextEditingController apellidosController = TextEditingController();
-  TextEditingController edadController = TextEditingController();
-  TextEditingController sobreMiController = TextEditingController();
-  TextEditingController objetivosController = TextEditingController();
-  TextEditingController imagenController = TextEditingController();
+  String firstName = "Usuario";
+  String lastName = "";
+  String userEmail = "";
+  int age = 0;
+  String bio = "";
+  String goals = "";
+  String? photoURL;
+  bool _imageLoadError = false; // Para rastrear errores de carga de imagen
+  bool _isLoading = true;
 
-  // Helper method para obtener colores según el tema
-  Color _getCardColor(BuildContext context) {
-    return Theme.of(context).cardColor;
-  }
+  // Estadísticas de hábitos
+  int totalHabits = 0;
+  int currentStreak = 0;
+  double overallProgress = 0.0;
+  int completedHabitsToday = 0;
 
-  bool _isDark(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark;
+  String get fullName {
+    final name = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+    return name.isNotEmpty ? name : 'Usuario';
   }
 
   @override
   void initState() {
     super.initState();
-
-    // Si no se pasa un perfil, vamos a usar valores por defecto
-    if (widget.perfil != null) {
-      nombre = widget.perfil!.nombre;
-      apellidos = widget.perfil!.apellido;
-      edad = widget.perfil!.edad.toString();
-      email = widget.perfil!.email;
-      sobreMi = widget.perfil!.sobreMi;
-      objetivos = widget.perfil!.objetivos;
-      imagenUrl = widget.perfil!.fotoUrl ?? 'https://via.placeholder.com/120';
-    } else {
-      // Valores por defecto
-      nombre = 'Tu nombre';
-      apellidos = 'Tus apellidos';
-      edad = 'Tu edad';
-      email = 'usuario@ejemplo.com';
-      sobreMi =
-          'Habla un poco sobre ti aquí. Esta es una sección donde puedes describirte a ti mismo, tus intereses, pasatiempos, y cualquier otra información que quieras compartir.';
-      objetivos =
-          'Aquí puedes escribir tus objetivos personales o profesionales. Describe lo que esperas lograr, tus metas a corto y largo plazo, y cómo planeas alcanzarlas.';
-      imagenUrl = 'https://via.placeholder.com/120';
-    }
+    _loadUserData();
   }
 
-  // Función para mostrar diálogos
-  void _mostrarDialogo(String boton) {
-    String mensaje = '';
-    String titulo = '';
-
-    switch (boton) {
-      case 'Editar':
-        _mostrarDialogoEditar();
-        return;
-      case 'Compartir':
-        titulo = 'Compartir Perfil';
-        mensaje = 'Vas a compartir tu perfil con otros';
-        break;
-      case 'Mis Objetivos':
-        titulo = 'Mis Objetivos';
-        mensaje = 'Vas a ver o editar tus objetivos';
-        break;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return AlertDialog(
-          backgroundColor: Theme.of(context).cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-          ),
-          title: Text(
-            titulo,
-            style: AppTextStyles.heading2.copyWith(
-              color: isDark ? Colors.white : AppColors.textPrimary,
-            ),
-          ),
-          content: Text(
-            mensaje,
-            style: AppTextStyles.bodyText.copyWith(
-              color: isDark ? Colors.white : AppColors.textPrimary,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'CANCELAR',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? Colors.grey.shade400
-                      : AppColors.textPrimary.withOpacity(0.6),
-                ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-                boxShadow: isDark ? [] : AppShadows.buttonShadow,
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.action,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-                  ),
-                ),
-                child: Text('ACEPTAR', style: AppTextStyles.buttonText),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Diálogo de edición
-  void _mostrarDialogoEditar() {
-    nombreController.text = nombre;
-    apellidosController.text = apellidos;
-    edadController.text = edad;
-    sobreMiController.text = sobreMi;
-    objetivosController.text = objetivos;
-    imagenController.text = imagenUrl;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        final isDark = _isDark(context);
-        return BackdropFilter(
-          filter: ColorFilter.mode(
-            Colors.black.withOpacity(0.5),
-            BlendMode.darken,
-          ),
-          child: Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSizes.borderRadius * 1.5),
-            ),
-            elevation: isDark ? 0 : 16,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: _isDark(context)
-                      ? [AppColors.darkSurface, AppColors.darkSurfaceVariant]
-                      : [AppColors.primaryBackground, Colors.white],
-                ),
-                borderRadius: BorderRadius.circular(
-                  AppSizes.borderRadius * 1.5,
-                ),
-              ),
-              padding: const EdgeInsets.all(AppSizes.paddingLarge),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Editar Perfil',
-                      style: AppTextStyles.heading1.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    // Widget foto de perfil
-                    Center(
-                      child: Container(
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.primary,
-                            width: 3,
-                          ),
-                          boxShadow: isDark ? [] : AppShadows.cardShadow,
-                        ),
-                        child: ClipOval(
-                          child: Image.network(
-                            imagenController.text.isNotEmpty
-                                ? imagenController.text
-                                : 'https://via.placeholder.com/120',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: AppColors.secondaryBackground,
-                                child: Icon(
-                                  Icons.person,
-                                  size: AppSizes.iconSizeLarge,
-                                  color: AppColors.primary,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSizes.paddingMedium),
-
-                    _buildEditField(
-                      controller: imagenController,
-                      label: 'URL de la imagen',
-                      icon: Icons.image,
-                      hintText: 'https://ejemplo.com/imagen.jpg',
-                    ),
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    _buildEditField(
-                      controller: nombreController,
-                      label: 'Nombre',
-                      icon: Icons.person,
-                    ),
-                    const SizedBox(height: AppSizes.paddingMedium),
-
-                    _buildEditField(
-                      controller: apellidosController,
-                      label: 'Apellidos',
-                      icon: Icons.people,
-                    ),
-                    const SizedBox(height: AppSizes.paddingMedium),
-
-                    _buildEditField(
-                      controller: edadController,
-                      label: 'Edad',
-                      icon: Icons.cake,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: AppSizes.paddingMedium),
-
-                    _buildEmailField(),
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    _buildEditSection(
-                      controller: sobreMiController,
-                      title: 'Sobre mí',
-                      icon: Icons.info_outline,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    _buildEditSection(
-                      controller: objetivosController,
-                      title: 'Mis objetivos',
-                      icon: Icons.flag_outlined,
-                      color: AppColors.success,
-                    ),
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    // Widget botones editar
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(
-                                AppSizes.borderRadius,
-                              ),
-                              boxShadow: isDark ? [] : AppShadows.buttonShadow,
-                            ),
-                            child: OutlinedButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppSizes.paddingMedium,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    AppSizes.borderRadius,
-                                  ),
-                                ),
-                                side: BorderSide(color: AppColors.borderColor),
-                              ),
-                              child: Text(
-                                'CANCELAR',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: _isDark(context)
-                                      ? Colors.grey.shade400
-                                      : AppColors.textPrimary.withOpacity(0.6),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSizes.paddingMedium),
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(
-                                AppSizes.borderRadius,
-                              ),
-                              boxShadow: isDark ? [] : AppShadows.buttonShadow,
-                            ),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                _guardarCambios();
-                                Navigator.of(context).pop();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.action,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppSizes.paddingMedium,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    AppSizes.borderRadius,
-                                  ),
-                                ),
-                              ),
-                              child: Text(
-                                'GUARDAR',
-                                style: AppTextStyles.buttonText,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Widget campos de edición
-  Widget _buildEditField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    String? hintText,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.paddingMedium),
-      decoration: BoxDecoration(
-        color: _getCardColor(context),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.paddingSmall),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: AppSizes.iconSizeSmall,
-            ),
-          ),
-          const SizedBox(width: AppSizes.paddingMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _isDark(context)
-                        ? Colors.grey.shade400
-                        : AppColors.textPrimary.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                TextField(
-                  controller: controller,
-                  keyboardType: keyboardType,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    border: InputBorder.none,
-                    hintText: hintText,
-                    hintStyle: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: _isDark(context)
-                          ? Colors.grey.shade500
-                          : AppColors.textPrimary.withOpacity(0.8),
-                    ),
-                  ),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _isDark(context)
-                        ? Colors.white
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget campo email no editable
-  Widget _buildEmailField() {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.paddingMedium),
-      decoration: BoxDecoration(
-        color: _isDark(context)
-            ? _getCardColor(context)
-            : AppColors.secondaryBackground.withOpacity(0.3),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.paddingSmall),
-            decoration: BoxDecoration(
-              color: AppColors.acentoSuave.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.email,
-              color: AppColors.acentoSuave,
-              size: AppSizes.iconSizeSmall,
-            ),
-          ),
-          const SizedBox(width: AppSizes.paddingMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Email',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _isDark(context)
-                        ? Colors.grey.shade400
-                        : AppColors.textPrimary.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  email,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _isDark(context)
-                        ? Colors.white
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.lock_outline,
-            color: _isDark(context)
-                ? Colors.grey.shade400
-                : AppColors.textPrimary.withOpacity(0.5),
-            size: 16,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget secciones de edición
-  Widget _buildEditSection({
-    required TextEditingController controller,
-    required String title,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSizes.paddingLarge),
-      decoration: BoxDecoration(
-        color: _getCardColor(context),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: AppSizes.paddingMedium),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.paddingMedium),
-          Container(height: 1, color: AppColors.borderColor),
-          const SizedBox(height: AppSizes.paddingMedium),
-          TextField(
-            controller: controller,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-            ),
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: _isDark(context) ? Colors.white : AppColors.textPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _guardarCambios() {
-    setState(() {
-      nombre = nombreController.text;
-      apellidos = apellidosController.text;
-      edad = edadController.text;
-      sobreMi = sobreMiController.text;
-      objetivos = objetivosController.text;
-      imagenUrl = imagenController.text.isNotEmpty
-          ? imagenController.text
-          : 'https://via.placeholder.com/120';
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recargar estadísticas cuando se regrese a la pantalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadHabitStats();
+      }
     });
+  }
+
+  Future<void> _loadUserData() async {
+    setState(() => _isLoading = true);
+    try {
+      final profile = await _profileService.getCurrentUserProfile();
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (mounted && profile != null) {
+        setState(() {
+          firstName = profile.firstName;
+          lastName = profile.lastName;
+          userEmail = profile.email;
+          age = profile.age;
+          bio = profile.bio;
+          goals = profile.goals;
+          photoURL = profile.photoUrl;
+          _imageLoadError = false; // Resetear error al cargar nueva foto
+        });
+      } else if (mounted && user != null) {
+        setState(() {
+          firstName = user.displayName ?? 'Usuario';
+          userEmail = user.email ?? '';
+          photoURL = user.photoURL;
+          _imageLoadError = false; // Resetear error al cargar nueva foto
+        });
+      }
+
+      // Cargar estadísticas de hábitos
+      await _loadHabitStats();
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadHabitStats() async {
+    try {
+      final habitService = Provider.of<HabitService>(context, listen: false);
+
+      // Asegurar que los hábitos estén cargados
+      await habitService.initializeHabits();
+
+      // Calcular total de templates de hábitos activos
+      totalHabits = await habitService.getTotalActiveTemplates();
+
+      // Calcular progreso general actual
+      overallProgress = await habitService.getCurrentOverallProgress();
+
+      // Calcular racha actual usando la nueva estructura
+      currentStreak = await habitService.getStreakFromDailyProgress();
+
+      // Calcular hábitos completados hoy
+      completedHabitsToday = await _getCompletedHabitsToday(habitService);
+    } catch (e) {
+      debugPrint('Error loading habit stats: $e');
+      // En caso de error, usar valores por defecto
+      totalHabits = 0;
+      overallProgress = 0.0;
+      currentStreak = 0;
+      completedHabitsToday = 0;
+    }
+  }
+
+  Future<int> _getCompletedHabitsToday(HabitService habitService) async {
+    try {
+      // Obtener hábitos del día actual desde el servicio
+      final dailyHabits = habitService.dailyHabits;
+
+      if (dailyHabits.isEmpty) {
+        return 0;
+      }
+
+      // Contar hábitos completados (progreso >= 1.0)
+      return dailyHabits.where((habit) => habit.value >= 1.0).length;
+    } catch (e) {
+      debugPrint('Error getting completed habits today: $e');
+      return 0;
+    }
   }
 
   @override
@@ -593,365 +149,542 @@ class _PerfilScreenState extends State<PerfilScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? [AppColors.darkBackground2, AppColors.darkSurface]
-                : [AppColors.primaryBackground, Colors.white],
-          ),
+      appBar: AppBar(
+        title: Consumer<ThemeProvider>(
+          builder: (context, themeProvider, child) {
+            return Text(
+              'Perfil',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : themeProvider.primaryColor,
+              ),
+            );
+          },
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.paddingLarge),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: ListView(
-                  children: [
-                    // Widget foto de perfil principal
-                    Center(
-                      child: Container(
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.primary,
-                            width: 3,
-                          ),
-                          boxShadow: isDark ? [] : AppShadows.cardShadow,
-                        ),
-                        child: ClipOval(
-                          child: Image.network(
-                            imagenUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: AppColors.secondaryBackground,
-                                child: Icon(
-                                  Icons.person,
-                                  size: AppSizes.iconSizeLarge,
-                                  color: AppColors.primary,
-                                ),
-                              );
-                            },
-                          ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(
+          color: isDark ? Colors.white : Theme.of(context).primaryColor,
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Avatar y información básica
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, child) {
+                      // Procesar URL de Google para evitar problemas de CORS
+                      String? processedImageUrl;
+                      if (photoURL != null && photoURL!.isNotEmpty) {
+                        if (photoURL!.contains('googleusercontent.com')) {
+                          // Modificar la URL de Google para mejorar compatibilidad
+                          processedImageUrl = photoURL!.replaceAll('=s96-c', '=s200-c');
+                        } else {
+                          processedImageUrl = photoURL;
+                        }
+                      }
+                      
+                      // Si hay error de carga o URL vacía, mostrar iniciales
+                      final shouldShowImage = processedImageUrl != null && 
+                                            processedImageUrl.isNotEmpty && 
+                                            !_imageLoadError;
+                      
+                      return CircleAvatar(
+                        radius: 50,
+                        backgroundColor: themeProvider.primaryColor,
+                        child: shouldShowImage
+                            ? ClipOval(
+                                child: processedImageUrl.startsWith('data:image')
+                                    ? Image.memory(
+                                        base64Decode(processedImageUrl.split(',')[1]),
+                                        width: 100,
+                                        height: 100,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                                            setState(() {
+                                              _imageLoadError = true;
+                                            });
+                                          });
+                                          return Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                fullName.isNotEmpty
+                                                    ? fullName[0].toUpperCase()
+                                                    : 'U',
+                                                style: const TextStyle(
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      )
+                                    : Image.network(
+                                        processedImageUrl,
+                                        width: 100,
+                                        height: 100,
+                                        fit: BoxFit.cover,
+                                        headers: {
+                                          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+                                          'Referer': 'https://accounts.google.com/',
+                                        },
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return const Center(
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2,
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                fullName.isNotEmpty
+                                                    ? fullName[0].toUpperCase()
+                                                    : 'U',
+                                                style: const TextStyle(
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              if (photoURL?.contains('googleusercontent.com') == true)
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.info_outline,
+                                                      color: Colors.white70,
+                                                      size: 12,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      'Google',
+                                                      style: TextStyle(
+                                                        fontSize: 9,
+                                                        color: Colors.white70,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    fullName.isNotEmpty
+                                        ? fullName[0].toUpperCase()
+                                        : 'U',
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    fullName,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                  if (age > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '$age años',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDark
+                              ? Colors.white60
+                              : AppColors.textSecondary,
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: AppSizes.paddingXLarge),
-
-                    // Widget cards de información
-                    _buildInfoCard('Nombre', nombre, Icons.person),
-                    const SizedBox(height: AppSizes.paddingMedium),
-                    _buildInfoCard('Apellidos', apellidos, Icons.people),
-                    const SizedBox(height: AppSizes.paddingMedium),
-                    _buildInfoCard('Edad', edad, Icons.cake),
-                    const SizedBox(height: AppSizes.paddingMedium),
-                    _buildEmailCard(),
-
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    // Widget botones principales
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              right: AppSizes.paddingSmall,
+                  const SizedBox(height: 8),
+                  Text(
+                    userEmail,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isDark ? Colors.white70 : AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, child) {
+                      return ElevatedButton.icon(
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EditProfileScreen(),
                             ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  AppSizes.borderRadius,
-                                ),
-                                boxShadow: isDark
-                                    ? []
-                                    : AppShadows.buttonShadow,
-                              ),
-                              child: ElevatedButton.icon(
-                                onPressed: () => _mostrarDialogo('Editar'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: AppSizes.paddingMedium,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      AppSizes.borderRadius,
-                                    ),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.edit, size: 18),
-                                label: Text(
-                                  'Editar',
-                                  style: AppTextStyles.buttonText,
-                                ),
-                              ),
-                            ),
+                          );
+                          // Recargar datos al volver
+                          _loadUserData();
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Editar perfil'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeProvider.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Mostrar estadísticas arriba si hay biografía o metas
+            if (bio.isNotEmpty || goals.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Estadísticas',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
                         Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              left: AppSizes.paddingSmall,
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  AppSizes.borderRadius,
-                                ),
-                                boxShadow: isDark
-                                    ? []
-                                    : AppShadows.buttonShadow,
-                              ),
-                              child: ElevatedButton.icon(
-                                onPressed: () => _mostrarDialogo('Compartir'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.success,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: AppSizes.paddingMedium,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      AppSizes.borderRadius,
-                                    ),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.share, size: 18),
-                                label: Text(
-                                  'Compartir',
-                                  style: AppTextStyles.buttonText,
-                                ),
-                              ),
-                            ),
+                          child: _buildStatCard(
+                            'Hábitos',
+                            totalHabits.toString(),
+                            Icons.task_alt,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Completados',
+                            '$completedHabitsToday/$totalHabits',
+                            Icons.check_circle,
                           ),
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: AppSizes.paddingXLarge),
-
-                    // Widget sección sobre mí
-                    _buildSectionCard(
-                      'Sobre mí',
-                      sobreMi,
-                      Icons.info_outline,
-                      AppColors.primary,
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Racha',
+                            currentStreak > 0
+                                ? '$currentStreak día${currentStreak > 1 ? 's' : ''}'
+                                : '0 días',
+                            Icons.local_fire_department,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Progreso',
+                            '${(overallProgress * 100).toStringAsFixed(0)}%',
+                            Icons.trending_up,
+                          ),
+                        ),
+                      ],
                     ),
-
-                    const SizedBox(height: AppSizes.paddingLarge),
-
-                    // Widget sección objetivos
-                    _buildSectionCard(
-                      'Mis objetivos',
-                      objetivos,
-                      Icons.flag_outlined,
-                      AppColors.success,
-                    ),
-
-                    const SizedBox(height: AppSizes.paddingXLarge),
                   ],
                 ),
               ),
-            ],
-          ),
+
+            if (bio.isNotEmpty) const SizedBox(height: 24),
+
+            // Biografía
+            if (bio.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Consumer<ThemeProvider>(
+                          builder: (context, themeProvider, child) {
+                            return Icon(
+                              Icons.info_outline,
+                              color: themeProvider.primaryColor,
+                              size: 20,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Biografía',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      bio,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: isDark
+                            ? Colors.white70
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            if (bio.isNotEmpty) const SizedBox(height: 16),
+
+            // Objetivos y metas
+            if (goals.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Consumer<ThemeProvider>(
+                          builder: (context, themeProvider, child) {
+                            return Icon(
+                              Icons.flag_outlined,
+                              color: themeProvider.primaryColor,
+                              size: 20,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Objetivos y metas',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      goals,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: isDark
+                            ? Colors.white70
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            if (goals.isNotEmpty) const SizedBox(height: 16),
+
+            // Estadísticas
+            if (!(bio.isNotEmpty || goals.isNotEmpty))
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Estadísticas',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Hábitos',
+                            totalHabits.toString(),
+                            Icons.task_alt,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Completados',
+                            '$completedHabitsToday/$totalHabits',
+                            Icons.check_circle,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Racha',
+                            currentStreak > 0
+                                ? '$currentStreak día${currentStreak > 1 ? 's' : ''}'
+                                : '0 días',
+                            Icons.local_fire_department,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Progreso',
+                            '${(overallProgress * 100).toStringAsFixed(0)}%',
+                            Icons.trending_up,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  // Widget card información personal
-  Widget _buildInfoCard(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.paddingMedium),
-      decoration: BoxDecoration(
-        color: _getCardColor(context),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.paddingSmall),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: AppSizes.iconSizeSmall,
-            ),
-          ),
-          const SizedBox(width: AppSizes.paddingMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _isDark(context)
-                        ? Colors.grey.shade400
-                        : AppColors.textPrimary.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _isDark(context)
-                        ? Colors.white
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildStatCard(String title, String value, IconData icon) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-  // Widget card email
-  Widget _buildEmailCard() {
     return Container(
-      padding: const EdgeInsets.all(AppSizes.paddingMedium),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _isDark(context)
-            ? _getCardColor(context)
-            : AppColors.secondaryBackground.withOpacity(0.3),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.paddingSmall),
-            decoration: BoxDecoration(
-              color: AppColors.acentoSuave.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.email,
-              color: AppColors.acentoSuave,
-              size: AppSizes.iconSizeSmall,
-            ),
-          ),
-          const SizedBox(width: AppSizes.paddingMedium),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Email',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _isDark(context)
-                        ? Colors.grey.shade400
-                        : AppColors.textPrimary.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  email,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _isDark(context)
-                        ? Colors.white
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.lock_outline,
-            color: _isDark(context)
-                ? Colors.grey.shade400
-                : AppColors.textPrimary.withOpacity(0.5),
-            size: 16,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget secciones con cards
-  Widget _buildSectionCard(
-    String title,
-    String content,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSizes.paddingLarge),
-      decoration: BoxDecoration(
-        color: _getCardColor(context),
-        border: Border.all(
-          color: AppColors.borderColor,
-          width: AppSizes.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-        boxShadow: _isDark(context) ? [] : AppShadows.cardShadow,
+        color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: AppSizes.paddingMedium),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              return Icon(icon, size: 24, color: themeProvider.primaryColor);
+            },
           ),
-          const SizedBox(height: AppSizes.paddingMedium),
-          Container(height: 1, color: AppColors.borderColor),
-          const SizedBox(height: AppSizes.paddingMedium),
+          const SizedBox(height: 8),
           Text(
-            content,
+            value,
             style: TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: _isDark(context) ? Colors.white : AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white70 : AppColors.textSecondary,
             ),
           ),
         ],

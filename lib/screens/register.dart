@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 import '../constants/app_constants.dart';
 import '../services/auth_service.dart';
 import 'login.dart';
@@ -165,14 +167,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Logo o título
-                Icon(Icons.person_add, size: 80, color: AppColors.primary),
+                Icon(
+                  Icons.person_add,
+                  size: 80,
+                  color: Provider.of<ThemeProvider>(context).primaryColor,
+                ),
                 const SizedBox(height: 20),
                 Text(
                   'Crear cuenta',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : AppColors.textPrimary,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 30),
@@ -180,10 +186,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 // Campo de nombre
                 TextField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre completo',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person),
+                  decoration: InputDecoration(
+                    labelText: 'Username',
+                    border: const OutlineInputBorder(),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Provider.of<ThemeProvider>(context).primaryColor,
+                      ),
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey),
+                    ),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                    ),
+                    floatingLabelStyle: TextStyle(
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.person,
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -192,10 +215,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Correo electrónico',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
+                    border: const OutlineInputBorder(),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Provider.of<ThemeProvider>(context).primaryColor,
+                      ),
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey),
+                    ),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                    ),
+                    floatingLabelStyle: TextStyle(
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.email,
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -204,10 +244,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Contraseña',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
+                    border: const OutlineInputBorder(),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Provider.of<ThemeProvider>(context).primaryColor,
+                      ),
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey),
+                    ),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                    ),
+                    floatingLabelStyle: TextStyle(
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.lock,
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -216,10 +273,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: _confirmPasswordController,
                   obscureText: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Confirmar contraseña',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
+                    border: const OutlineInputBorder(),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Provider.of<ThemeProvider>(context).primaryColor,
+                      ),
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey),
+                    ),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                    ),
+                    floatingLabelStyle: TextStyle(
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -231,11 +305,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _register,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.action,
+                      backgroundColor: Provider.of<ThemeProvider>(
+                        context,
+                      ).primaryColor,
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: AppColors.action.withOpacity(
-                        0.5,
-                      ),
+                      disabledBackgroundColor: Provider.of<ThemeProvider>(
+                        context,
+                      ).primaryColor.withValues(alpha: 0.5),
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -304,14 +380,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
                       height: 24,
                       width: 24,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.g_mobiledata, size: 24),
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                        Icons.g_mobiledata,
+                        size: 24,
+                        color: Provider.of<ThemeProvider>(context).primaryColor,
+                      ),
                     ),
                     label: Text(
                       'Continuar con Google',
                       style: TextStyle(
                         fontSize: 16,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                   ),
@@ -327,7 +406,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Text(
                     '¿Ya tienes cuenta? Inicia sesión',
                     style: TextStyle(
-                      color: isDark ? AppColors.acentoSuave : AppColors.primary,
+                      color: isDark
+                          ? Provider.of<ThemeProvider>(
+                              context,
+                            ).primaryColor.withValues(alpha: 0.8)
+                          : Provider.of<ThemeProvider>(context).primaryColor,
                     ),
                   ),
                 ),

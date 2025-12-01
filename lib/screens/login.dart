@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
 import '../constants/app_constants.dart';
 import '../services/auth_service.dart';
 import 'register.dart';
@@ -53,8 +55,15 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
-      // Login exitoso - El AuthWrapper se encargará de navegar automáticamente
-      // No reseteamos _isLoading aquí porque el widget será desmontado
+
+      // Agregar un pequeño delay y luego resetear loading por si no navega automáticamente
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       // Solo en caso de error reseteamos el loading
       if (mounted) {
@@ -107,7 +116,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await _authService.signInWithGoogle();
-      // Login exitoso - El AuthWrapper se encargará de navegar automáticamente
+
+      // Agregar un pequeño delay y luego resetear loading por si no navega automáticamente
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -157,19 +174,19 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.account_circle,
                   size: 80,
-                  color: AppColors.primary,
+                  color: Provider.of<ThemeProvider>(context).primaryColor,
                 ),
 
                 const SizedBox(height: 20),
                 Text(
-                  'Iniciar Sesión',
+                  'Iniciar Sesi\u00f3n',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : AppColors.textPrimary,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 30),
@@ -178,10 +195,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Correo electrónico',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
+                    border: const OutlineInputBorder(),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Provider.of<ThemeProvider>(context).primaryColor,
+                      ),
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey),
+                    ),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                    ),
+                    floatingLabelStyle: TextStyle(
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.email,
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -190,10 +224,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Contraseña',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
+                    border: const OutlineInputBorder(),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Provider.of<ThemeProvider>(context).primaryColor,
+                      ),
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey),
+                    ),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                    ),
+                    floatingLabelStyle: TextStyle(
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.lock,
+                      color: Provider.of<ThemeProvider>(context).primaryColor,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -205,11 +256,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.action,
+                      backgroundColor: Provider.of<ThemeProvider>(
+                        context,
+                      ).primaryColor,
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: AppColors.action.withOpacity(
-                        0.5,
-                      ),
+                      disabledBackgroundColor: Provider.of<ThemeProvider>(
+                        context,
+                      ).primaryColor.withValues(alpha: 0.5),
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -278,14 +331,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
                       height: 24,
                       width: 24,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.g_mobiledata, size: 24),
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                        Icons.g_mobiledata,
+                        size: 24,
+                        color: Provider.of<ThemeProvider>(context).primaryColor,
+                      ),
                     ),
                     label: Text(
                       'Continuar con Google',
                       style: TextStyle(
                         fontSize: 16,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                   ),
@@ -299,7 +355,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Text(
                     '¿No tienes cuenta? Regístrate',
                     style: TextStyle(
-                      color: isDark ? AppColors.acentoSuave : AppColors.primary,
+                      color: isDark
+                          ? Provider.of<ThemeProvider>(
+                              context,
+                            ).primaryColor.withValues(alpha: 0.8)
+                          : Provider.of<ThemeProvider>(context).primaryColor,
                     ),
                   ),
                 ),
@@ -312,7 +372,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(
                       color: isDark
                           ? Colors.white70
-                          : AppColors.textPrimary.withOpacity(0.6),
+                          : Colors.black87.withValues(alpha: 0.6),
                     ),
                   ),
                 ),
